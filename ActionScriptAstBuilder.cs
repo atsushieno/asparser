@@ -154,6 +154,27 @@ namespace FreeActionScript
 			node.AstNode = new PackageDeclaration (node.Get<string> (1), node.Get<PackageContents> (2));
 		}
 
+		void create_ast_namespace_or_class (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 3);
+			var cns = node.Get<INamespaceOrClass> (2);
+			cns.Events = node.Get<EventDeclarations> (0);
+			cns.Headers = node.Get<MemberHeaders> (1);
+			node.AstNode = cns;
+		}
+
+		void create_ast_namespace_decl (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 3);
+			node.AstNode = new NamespaceDeclaration (node.Get<Identifier> (1));
+		}
+
+		void create_ast_class_decl (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 5);
+			node.AstNode = new ClassDeclaration (node.Get<Identifier> (1), node.Get<TypeName> (2), node.Get<NamespaceUses> (3), node.Get<ClassMembers> (4));
+		}
+
 		void create_ast_general_function (ParsingContext context, ParseTreeNode node) 
 		{
 			ProcessChildrenCommon (context, node, 2);
@@ -170,8 +191,8 @@ namespace FreeActionScript
 
 		void create_ast_function_nameless (ParsingContext context, ParseTreeNode node)
 		{
-			ProcessChildrenCommon (context, node, 3);
-			node.AstNode = new FunctionDefinition (node.Get<ArgumentDeclarations> (0), node.Get<TypeName> (1), node.Get<Statements> (2));
+			ProcessChildrenCommon (context, node, 5);
+			node.AstNode = new FunctionDefinition (node.Get<ArgumentDeclarations> (1), node.Get<TypeName> (3), node.Get<Statements> (4));
 		}
 
 		void create_ast_argument_decl (ParsingContext context, ParseTreeNode node)
@@ -212,6 +233,29 @@ namespace FreeActionScript
 			node.AstNode = new ReturnStatement (node.Get<Expression> (0));
 		}
 
+		void create_ast_if_statement (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 6, 7);
+			var cond = node.Get<Expression> (2);
+			var t = node.Get<Statement> (4);
+			var f = node.ChildNodes.Count == 7 ? node.Get<Statement> (6) : null;
+			node.AstNode = new IfStatement (cond, t, f);
+		}
+
+		void create_ast_else_block (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 0, 2);
+			if (node.ChildNodes.Count == 0)
+				return; // empty
+			node.AstNode = node.Get<Statement> (1);
+		}
+
+		void create_ast_expression_statement (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 1);
+			node.AstNode = new ExpressionStatement (node.Get<Expression> (0));
+		}
+
 		void create_ast_conditional_expression (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 1, 3);
@@ -230,9 +274,30 @@ namespace FreeActionScript
 				node.AstNode = new CastAsExpression (node.Get<Expression> (0), node.Get<TypeName> (1));
 		}
 
+		void create_ast_function_call_expression (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 4);
+			node.AstNode = new FunctionCallExpression (node.Get<Expression> (0), node.Get<FunctionCallArguments> (2));
+		}
+
+		void create_ast_name_value_pair (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 3);
+			node.AstNode = new NameValuePair (node.Get<Identifier> (0), node.Get<Expression> (2));
+		}
+
 		void create_ast_assign_statement (ParsingContext context, ParseTreeNode node)
 		{
 			node.AstNode = new AssignmentExpressionStatement (node.Get<Expression> (0));
+		}
+
+		void create_ast_calc_assign_statement (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 1, 3);
+			if (node.ChildNodes.Count == 1)
+				node.AstNode = node.Get<Expression> (0);
+			if (node.ChildNodes.Count == 3)
+				node.AstNode = new CalcAssignStatement (node.Get<ILeftValue> (0), node.Get<Expression> (2), node.ChildNodes [1].Term.Name);
 		}
 
 		void create_ast_assignment_expression (ParsingContext context, ParseTreeNode node)
@@ -282,6 +347,12 @@ namespace FreeActionScript
 			}
 			else
 				node.AstNode = new ParenthesizedExpression (node.Get<Expression> (1));
+		}
+
+		void create_ast_embedded_function_expression (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 1);
+			node.AstNode = new EmbeddedFunctionExpression (node.Get<FunctionDefinition> (0));
 		}
 
 		void create_ast_member_reference_expression (ParsingContext context, ParseTreeNode node)
@@ -353,6 +424,12 @@ namespace FreeActionScript
 		public PackageContents Items { get; private set; }
 	}
 
+	public interface INamespaceOrClass
+	{
+		EventDeclarations Events { get; set; }
+		MemberHeaders Headers { get; set; }
+	}
+
 	public partial class EventDeclaration
 	{
 		public EventDeclaration (TypeName name, EventDeclarationMembers members)
@@ -367,20 +444,18 @@ namespace FreeActionScript
 		}
 	}
 
-	public partial class ClassDeclaration : ICompileUnitItem, IPackageContent
+	public partial class ClassDeclaration : ICompileUnitItem, IPackageContent, INamespaceOrClass
 	{
-		public ClassDeclaration (EventDeclarations events, MemberHeaders headers, Identifier name, Identifier baseClassName, NamespaceUses namespaceUses, ClassMembers members)
+		public ClassDeclaration (Identifier name, TypeName baseClassName, NamespaceUses namespaceUses, ClassMembers members)
 		{
-			Events = events;
-			Headers = headers;
 			Name = name;
 			BaseClassName = baseClassName;
 			NamespaceUses = namespaceUses;
 			Members = members;
 		}
 		
-		public EventDeclarations Events { get; private set; }
-		public MemberHeaders Headers { get; private set; }
+		public EventDeclarations Events { get; set; }
+		public MemberHeaders Headers { get; set; }
 		public Identifier Name { get; set; }
 		public Identifier BaseClassName { get; set; }
 		public NamespaceUses NamespaceUses { get; private set; }
@@ -411,15 +486,15 @@ namespace FreeActionScript
 		public TypeName Name { get; set; }
 	}
 
-	public partial class NamespaceDeclaration : IPackageContent
+	public partial class NamespaceDeclaration : IPackageContent, INamespaceOrClass
 	{
-		public NamespaceDeclaration (MemberHeaders headers, Identifier name)
+		public NamespaceDeclaration (Identifier name)
 		{
-			Headers = headers;
 			Name = name;
 		}
 
-		public MemberHeaders Headers { get; private set; }
+		public EventDeclarations Events { get; set; }
+		public MemberHeaders Headers { get; set; }
 		public Identifier Name { get; set; }
 	}
 
@@ -927,6 +1002,13 @@ namespace FreeActionScript
 	public partial class CatchBlock
 	{
 		public CatchBlock (TypedIdentifier nameAndType, Statements statements)
+		{
+		}
+	}
+
+	public partial class CalcAssignStatement : Statement
+	{
+		public CalcAssignStatement (ILeftValue left, Expression right, string oper)
 		{
 		}
 	}

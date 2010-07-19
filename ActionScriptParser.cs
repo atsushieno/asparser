@@ -133,6 +133,8 @@ var package_decl = DefaultNonTerminal ("package_declaration");
 var package_name = DefaultNonTerminal ("package_name");
 var package_contents = DefaultNonTerminal ("package_contents");
 var package_content = DefaultNonTerminal ("package_content");
+var namespace_or_class = DefaultNonTerminal ("namespace_or_class");
+var namespace_or_class_headless = DefaultNonTerminal ("namespace_or_class_headless");
 var namespace_decl = DefaultNonTerminal ("namespace_declaration");
 var import = DefaultNonTerminal ("import");
 var namespace_uses = DefaultNonTerminal ("namespace_uses");
@@ -145,7 +147,6 @@ var event_decl = DefaultNonTerminal ("event_declaration");
 var event_decl_members = DefaultNonTerminal ("event_decl_members");
 var event_decl_member = DefaultNonTerminal ("event_decl_member");
 var access_modifier = DefaultNonTerminal ("access_modifier");
-var extends_opt = DefaultNonTerminal ("extends_opt");
 var class_members = DefaultNonTerminal ("class_members");
 var class_member = DefaultNonTerminal ("class_member");
 var member_header = DefaultNonTerminal ("member_header");
@@ -253,19 +254,21 @@ compile_unit_item.Rule = package_decl | import | class_decl;
 package_decl.Rule = keyword_package + package_name + "{" + package_contents + "}";
 package_name.Rule = qualified_reference;
 package_contents.Rule = MakeStarRule (package_contents, null, package_content);
-package_content.Rule = import | namespace_decl | class_decl;
-namespace_decl.Rule = member_header + keyword_namespace + identifier + ";";
+package_content.Rule = import | namespace_or_class;
+// It is wrong if event_decls are placed before namespace decl, having them before namespace_decl and class_decl results in shift-reduce conflict, and there is no good way to resolve this extra event_decls issue.
+namespace_or_class.Rule = event_decls + member_header + namespace_or_class_headless;
+namespace_or_class_headless.Rule = namespace_decl | class_decl;
+namespace_decl.Rule = keyword_namespace + identifier + ";";
 
 import.Rule = keyword_import + type_name_wild + ";";
 namespace_uses.Rule = MakeStarRule (namespace_uses, null, namespace_use);
 namespace_use.Rule = keyword_use + keyword_namespace + identifier + ";";
 
-class_decl.Rule = member_header + event_decls + (Empty | keyword_public) + keyword_class + identifier + extends_opt + "{" + namespace_uses + class_members + "}";
+class_decl.Rule = keyword_class + identifier + (Empty | keyword_extends + type_name) + "{" + namespace_uses + class_members + "}";
 event_decls.Rule = MakeStarRule (event_decls, null, event_decl);
 event_decl.Rule = "[" + type_name + "(" + event_decl_members + ")" + "]"; // type_name must be "Event"
 event_decl_members.Rule = MakeStarRule (event_decl_members, ToTerm (","), event_decl_member);
 event_decl_member.Rule = identifier + "=" + literal;
-extends_opt.Rule = Empty | keyword_extends + identifier;
 
 // class member
 access_modifier.Rule = keyword_public | keyword_internal | keyword_private | identifier | keyword_static | keyword_dynamic | keyword_override;
@@ -524,11 +527,11 @@ RegisterOperators (-3, "=", "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "<<=
 RegisterOperators (-2, "?");
 Delimiters = "{}[](),:;+-*/%&|^!~<>=";
 // not sure if "." should be added here.
-RegisterPunctuation (";", ",", "(", ")", "{", "}", "[", "]", ":", ".", "?");
+RegisterPunctuation (";", ",", "{", "}", "[", "]", ":", ".", "?");
 
 MarkNotReported (keyword_package);
-MarkTransient (compile_unit_item, package_content, class_member, property_function, statement, statement_lacking_colon, expression, call_argument, lvalue, union_operator, unary_operator);
-//MarkTransient (compile_unit_item, package_decl, package_content, class_member, extends_opt, statement, statement_lacking_colon, expression, conditional_expression, iteration_expression, or_expression, and_expression, equality_expression, relational_expression, additive_expression, multiplicative_expression, as_expression, shift_expression, union_expression, unary_expression, new_object_expression, general_function_headless, function_nameless, call_argument);
+MarkTransient (compile_unit_item, package_content, namespace_or_class_headless, class_member, property_function, argument_type, statement, statement_lacking_colon, expression, call_argument, lvalue, union_operator, unary_operator);
+//MarkTransient (compile_unit_item, package_decl, package_content, class_member, statement, statement_lacking_colon, expression, conditional_expression, iteration_expression, or_expression, and_expression, equality_expression, relational_expression, additive_expression, multiplicative_expression, as_expression, shift_expression, union_expression, unary_expression, new_object_expression, general_function_headless, function_nameless, call_argument);
 
 
 		identifier.AstNodeCreator = delegate (ParsingContext ctx, ParseTreeNode node) { node.AstNode = node.FindTokenAndGetText (); };
@@ -541,6 +544,7 @@ MarkTransient (compile_unit_item, package_content, class_member, property_functi
 		package_decl.AstNodeCreator = create_ast_package_decl;
 		package_name.AstNodeCreator = create_ast_select_single_child;
 		package_contents.AstNodeCreator = create_ast_simple_list<IPackageContent>;
+namespace_or_class.AstNodeCreator = create_ast_namespace_or_class;
 namespace_decl.AstNodeCreator = create_ast_namespace_decl;
 import.AstNodeCreator = create_ast_import;
   namespace_uses.AstNodeCreator = create_ast_simple_list<NamespaceUse>;
@@ -550,7 +554,6 @@ class_decl.AstNodeCreator = create_ast_class_decl;
 event_decl.AstNodeCreator = create_ast_event_decl;
   event_decl_members.AstNodeCreator = create_ast_simple_list<EventDeclarationMember>;
 event_decl_member.AstNodeCreator = create_ast_event_decl_member;
-extends_opt.AstNodeCreator = create_ast_extends_opt;
 access_modifier.AstNodeCreator = create_ast_select_single_child;
   class_members.AstNodeCreator = create_ast_simple_list<IClassMember>;
 class_member.AstNodeCreator = create_ast_class_member;
@@ -569,14 +572,15 @@ constructor.AstNodeCreator = create_ast_constructor;
   argument_decls.AstNodeCreator = create_ast_simple_list<ArgumentDeclaration>;
 argument_decl.AstNodeCreator = create_ast_argument_decl;
 varargs_decl.AstNodeCreator = create_ast_varargs_decl;
-argument_type.AstNodeCreator = create_ast_argument_type;
 qualified_reference.AstNodeCreator = create_ast_qualified_reference;
   statements.AstNodeCreator = create_ast_simple_list<Statement>;
 local_function_declaration.AstNodeCreator = create_ast_local_function_declaration;
 statement_lacking_colon_then_colon.AstNodeCreator = create_ast_statement_lacking_colon_then_colon;
 assign_statement.AstNodeCreator = create_ast_assign_statement;
+calc_assign_statement.AstNodeCreator = create_ast_calc_assign_statement;
 return_statement.AstNodeCreator = create_ast_return_statement;
-function_call_statement.AstNodeCreator = create_ast_function_call_statement;
+function_call_statement.AstNodeCreator = create_ast_expression_statement;
+if_statement.AstNodeCreator = create_ast_if_statement;
 else_block.AstNodeCreator = create_ast_else_block;
   switch_cond_blocks.AstNodeCreator = create_ast_simple_list<SwitchBlock>;
 switch_cond_block.AstNodeCreator = create_ast_switch_cond_block;
@@ -621,7 +625,7 @@ function_call_expression.AstNodeCreator = create_ast_function_call_expression;
 call_argument.AstNodeCreator = create_ast_call_argument;
 new_object_expression.AstNodeCreator = create_ast_new_object_expression;
 literal_array_expression.AstNodeCreator = create_ast_literal_array_expression;
-array_items.AstNodeCreator = create_ast_array_items;
+  array_items.AstNodeCreator = create_ast_simple_list<Expression>;
 literal_hash_expression.AstNodeCreator = create_ast_literal_hash_expression;
   hash_items.AstNodeCreator = create_ast_simple_list<HashItem>;
 hash_item.AstNodeCreator = create_ast_hash_item;
@@ -631,18 +635,12 @@ type_name_wild.AstNodeCreator = create_ast_type_name_wild;
 semi_opt.AstNodeCreator = create_ast_semi_opt;
 		}
 
-void create_ast_namespace_decl (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_import (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_namespace_uses (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_namespace_use (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_class_decl (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_event_decls (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_event_decl (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_event_decl_members (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_event_decl_member (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_extends_opt (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_access_modifier (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_class_members (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_class_member (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_member_header (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_constant_declaration (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
@@ -653,12 +651,10 @@ void create_ast_property_setter (ParsingContext context, ParseTreeNode parseNode
 
 void create_ast_constructor (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_varargs_decl (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_argument_type (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 
 void create_ast_statements (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_local_function_declaration (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_function_call_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_else_block (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_switch_cond_blocks (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_switch_cond_block (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_while_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
@@ -683,22 +679,14 @@ void create_ast_exception_type_part (ParsingContext context, ParseTreeNode parse
 void create_ast_finally_block (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_block_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_local_var_decl_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_name_value_pairs (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_name_value_pair (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_delete_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 
 void create_ast_inc_dec_expression (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_name_reference_expression (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_function_call_expression (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_call_arguments (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_call_argument (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_new_object_expression (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_literal_array_expression (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_array_items (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_literal_hash_expression (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_hash_items (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_hash_item (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_embedded_function_expression (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-
 	}
 }

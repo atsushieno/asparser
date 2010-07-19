@@ -527,7 +527,7 @@ Delimiters = "{}[](),:;+-*/%&|^!~<>=";
 RegisterPunctuation (";", ",", "(", ")", "{", "}", "[", "]", ":", ".", "?");
 
 MarkNotReported (keyword_package);
-MarkTransient (compile_unit_item, package_content, class_member, property_function, statement, statement_lacking_colon, expression, call_argument, lvalue, union_operator, unary_operator, literal);
+MarkTransient (compile_unit_item, package_content, class_member, property_function, statement, statement_lacking_colon, expression, call_argument, lvalue, union_operator, unary_operator);
 //MarkTransient (compile_unit_item, package_decl, package_content, class_member, extends_opt, statement, statement_lacking_colon, expression, conditional_expression, iteration_expression, or_expression, and_expression, equality_expression, relational_expression, additive_expression, multiplicative_expression, as_expression, shift_expression, union_expression, unary_expression, new_object_expression, general_function_headless, function_nameless, call_argument);
 
 
@@ -615,6 +615,7 @@ array_access_expression.AstNodeCreator = create_ast_array_access_expression;
 literal.AstNodeCreator = create_ast_literal;
 member_reference_expression.AstNodeCreator = create_ast_member_reference_expression;
 name_reference_expression.AstNodeCreator = create_ast_select_single_child;
+primary_expression.AstNodeCreator = create_ast_primary_expression;
 function_call_expression.AstNodeCreator = create_ast_function_call_expression;
   call_arguments.AstNodeCreator = create_ast_simple_list<Expression>;
 call_argument.AstNodeCreator = create_ast_call_argument;

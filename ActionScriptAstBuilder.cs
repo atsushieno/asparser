@@ -111,7 +111,6 @@ namespace FreeActionScript
 			ProcessChildrenCommon (context, node, 1, 3);
 			if (node.ChildNodes.Count == 1)
 				node.AstNode = node.Get<object> (0);
-Console.Write (":: " + node.Term.Name); foreach (var cn in node.ChildNodes) Console.Write (" " + cn.Term.Name); Console.WriteLine ();
 			if (node.ChildNodes.Count == 3)
 				node.AstNode = new BinaryExpression (node.Get<Expression> (0), node.Get<Expression> (2), node.ChildNodes [1].Term.Name);
 		}
@@ -250,6 +249,8 @@ Console.Write (":: " + node.Term.Name); foreach (var cn in node.ChildNodes) Cons
 			if (node.ChildNodes.Count == 2)
 				node.AstNode = new ArrayInExpression (node.Get<Expression> (0), node.Get<Expression> (1));
 		}
+
+//Console.Write (":: " + node.Term.Name); foreach (var cn in node.ChildNodes) Console.Write (" " + cn.Term.Name + "(" + cn.AstNode + ")"); Console.WriteLine ();
 
 		void create_ast_array_access_expression (ParsingContext context, ParseTreeNode node)
 		{

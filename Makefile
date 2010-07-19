@@ -1,5 +1,8 @@
 asparser.exe : ActionScriptParser.dll
-	dmcs -r:ActionScriptParser.dll -r:Irony.dll Driver.cs -debug
+	gmcs -r:ActionScriptParser.dll -r:Irony.dll Driver.cs -debug
 
 ActionScriptParser.dll : ActionScriptParser.cs ActionScriptAstBuilder.cs
-	dmcs -t:library ActionScriptParser.cs ActionScriptAstBuilder.cs -debug -r:Irony.dll
+	gmcs -t:library ActionScriptParser.cs ActionScriptAstBuilder.cs -debug -r:Irony.dll
+
+clean:
+	rm -rf ActionScriptParser.dll Driver.exe

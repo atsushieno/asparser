@@ -9,7 +9,7 @@ using MemberHeaders = System.Collections.Generic.List<string>;
 using TypeName = System.String;
 using Identifier = System.String;
 using QualifiedReference = System.String;
-using Literal = System.Object;
+#if true
 using PackageContents = System.Collections.Generic.List<FreeActionScript.IPackageContent>;
 using NamespaceUses = System.Collections.Generic.List<FreeActionScript.NamespaceUse>;
 using EventDeclarations = System.Collections.Generic.List<FreeActionScript.EventDeclaration>;
@@ -25,6 +25,23 @@ using ArgumentDeclarations = System.Collections.Generic.List<FreeActionScript.Ar
 using NameValuePairs = System.Collections.Generic.List<FreeActionScript.NameValuePair>;
 using Expressions = System.Collections.Generic.List<FreeActionScript.Expression>;
 using HashItems = System.Collections.Generic.List<FreeActionScript.HashItem>;
+#else
+using PackageContents = System.Collections.Generic.List<object>;
+using NamespaceUses = System.Collections.Generic.List<object>;
+using EventDeclarations = System.Collections.Generic.List<object>;
+using EventDeclarationMembers = System.Collections.Generic.List<object>;
+using ClassMembers = System.Collections.Generic.List<object>;
+using FunctionCallArguments = System.Collections.Generic.List<object>;
+using Statements = System.Collections.Generic.List<object>;
+using SwitchBlocks = System.Collections.Generic.List<object>;
+using ForIterators = System.Collections.Generic.List<object>;
+using ForAssignStatements = System.Collections.Generic.List<object>;
+using TypedIdentifier = System.Collections.Generic.KeyValuePair<Identifier, TypeName>;
+using ArgumentDeclarations = System.Collections.Generic.List<object>;
+using NameValuePairs = System.Collections.Generic.List<object>;
+using Expressions = System.Collections.Generic.List<object>;
+using HashItems = System.Collections.Generic.List<object>;
+#endif
 
 namespace FreeActionScript
 {
@@ -68,92 +85,243 @@ namespace FreeActionScript
 	{
 		object dummy = new object ();
 
+		protected void ProcessChildrenCommon (ParsingContext ctx, ParseTreeNode node, params int [] expectedChildCounts)
+		{
+			if (expectedChildCounts.Length > 0 && Array.IndexOf (expectedChildCounts, node.ChildNodes.Count) < 0)
+				throw new Exception (String.Format ("Node {0} is expected to have {1} child nodes, but there was {2}", node.Term.Name, expectedChildCounts.ConcatToString (" or "), node.ChildNodes.Count));
+			foreach (var cn in node.ChildNodes)
+				cn.Term.CreateAstNode (ctx, cn);
+		}
+
 		void not_implemented (ParsingContext ctx, ParseTreeNode node)
 		{
+			Console.WriteLine ("Node {0} has {1} children", node.Term.Name, node.ChildNodes.Count);
 			foreach (var cn in node.ChildNodes)
 				cn.Term.CreateAstNode (ctx, cn);
 		}
 
-		void create_ast_binary_operator (ParsingContext ctx, ParseTreeNode node)
+		void create_ast_select_single_child (ParsingContext context, ParseTreeNode parseNode)
 		{
-			foreach (var cn in node.ChildNodes)
-				cn.Term.CreateAstNode (ctx, cn);
-			switch (node.ChildNodes.Count) {
-			case 1:
-				node.AstNode = node.ChildNodes [0].AstNode;
-				break;
-			case 3:
-				node.AstNode = new BinaryOperation (node.ChildNodes [0].AstNode, node.ChildNodes [2].AstNode, node.ChildNodes [1].AstNode);
-				break;
-			default:
-				throw new Exception (String.Format ("huh? {0} {1}", node.Term.Name, node.ChildNodes.Count));
-			}
+			if (parseNode.ChildNodes.Count != 1)
+				throw new Exception (String.Format ("On {0}, expected 1 child but had {1} children", parseNode.Term.Name, parseNode.ChildNodes.Count));
 		}
 
-		void create_ast_simple_list (ParsingContext ctx, ParseTreeNode node)
+		void create_ast_binary_operator (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 1, 3);
+			if (node.ChildNodes.Count == 1)
+				node.AstNode = node.Get<object> (0);
+Console.Write (":: " + node.Term.Name); foreach (var cn in node.ChildNodes) Console.Write (" " + cn.Term.Name); Console.WriteLine ();
+			if (node.ChildNodes.Count == 3)
+				node.AstNode = new BinaryExpression (node.Get<Expression> (0), node.Get<Expression> (2), node.ChildNodes [1].Term.Name);
+		}
+
+		void create_ast_simple_list<T> (ParsingContext ctx, ParseTreeNode node)
 		{
 			foreach (var cn in node.ChildNodes)
 				cn.Term.CreateAstNode (ctx, cn);
 			if (node.ChildNodes.Count == 0)
-				node.AstNode = new List<object> ();
+				node.AstNode = new List<T> ();
 			else {
 				var l = node.ChildNodes [0];
-				var list = l.AstNode as List<object>;
+				var list = l.AstNode as List<T>;
 				if (list == null) {
-					list = new List<object> ();
-					list.Add (l.AstNode);
+					list = new List<T> ();
+					list.Add ((T) l.AstNode);
 				}
 				foreach (var cn in node.ChildNodes)
 					if (cn.AstNode != list)
-						list.Add (cn.AstNode);
+						list.Add ((T) cn.AstNode);
 				node.AstNode = list;
 			}
 		}
 
-		void create_ast_type_name_wild (ParsingContext context, ParseTreeNode parseNode)
+		// specific creation rules
+
+		void create_ast_compile_unit (ParsingContext context, ParseTreeNode parseNode)
+		{
+			var cu = new CompileUnit ();
+			foreach (var cn in parseNode.ChildNodes) {
+				if (cn.AstNode == null)
+					cn.Term.CreateAstNode (context, cn);
+				cu.Items.Add ((ICompileUnitItem) cn.AstNode);
+			}
+			parseNode.AstNode = cu;
+		}
+
+		void create_ast_package_decl (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 3);
+			node.AstNode = new PackageDeclaration (node.Get<string> (1), node.Get<PackageContents> (2));
+		}
+
+		void create_ast_general_function (ParsingContext context, ParseTreeNode node) 
+		{
+			ProcessChildrenCommon (context, node, 2);
+			node.AstNode = new GeneralFunction (node.Get<MemberHeaders> (0), node.Get<FunctionDefinition> (1));
+		}
+
+		void create_ast_general_function_headless (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 3);
+			var fd = node.Get<FunctionDefinition> (2);
+			fd.Name = node.Get<Identifier> (1);
+			node.AstNode = fd;
+		}
+
+		void create_ast_function_nameless (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 3);
+			node.AstNode = new FunctionDefinition (node.Get<ArgumentDeclarations> (0), node.Get<TypeName> (1), node.Get<Statements> (2));
+		}
+
+		void create_ast_argument_decl (ParsingContext context, ParseTreeNode node)
+		{
+			// identifier + ":" + argument_type + assignment_opt | varargs_decl
+			ProcessChildrenCommon (context, node, 1, 2, 3);
+
+			if (node.ChildNodes.Count == 1) // vardecl
+				node.AstNode = node.Get<ArgumentDeclaration> (0);
+			else if (node.ChildNodes.Count == 2)
+				node.AstNode = new ArgumentDeclaration (node.Get<Identifier> (0), node.Get<TypeName> (1), null);
+			else if (node.ChildNodes.Count == 3)
+				node.AstNode = new ArgumentDeclaration (node.Get<Identifier> (0), node.Get<TypeName> (1), node.Get<Expression> (2));
+		}
+
+		void create_ast_assignment_opt (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 0, 2);
+			if (node.ChildNodes.Count == 2)
+				node.AstNode = node.Get<Expression> (1);
+		}
+
+		void create_ast_function_body (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 1);
+			node.AstNode = node.ChildNodes [0].AstNode;
+		}
+
+		void create_ast_statement_lacking_colon_then_colon (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 1);
+			node.AstNode = node.ChildNodes [0].AstNode;
+		}
+
+		void create_ast_return_statement (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 2);
+			node.AstNode = new ReturnStatement (node.Get<Expression> (0));
+		}
+
+		void create_ast_conditional_expression (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 1, 3);
+			if (node.ChildNodes.Count == 1)
+				node.AstNode = node.Get<Expression> (0);
+			if (node.ChildNodes.Count == 3)
+				node.AstNode = new ConditionalExpression (node.Get<Expression> (0), node.Get<Expression> (1), node.Get<Expression> (2));
+		}
+
+		void create_ast_as_expression (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 1, 2);
+			if (node.ChildNodes.Count == 1)
+				node.AstNode = node.Get<Expression> (0);
+			if (node.ChildNodes.Count == 2)
+				node.AstNode = new CastAsExpression (node.Get<Expression> (0), node.Get<TypeName> (1));
+		}
+
+		void create_ast_assign_statement (ParsingContext context, ParseTreeNode node)
+		{
+			node.AstNode = new AssignmentExpressionStatement (node.Get<Expression> (0));
+		}
+
+		void create_ast_assignment_expression (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 3);
+			node.AstNode = new AssignmentExpression (node.Get<ILeftValue> (0), node.Get<Expression> (2));
+		}
+
+		void create_ast_iteration_expression (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 1, 2);
+			if (node.ChildNodes.Count == 1)
+				node.AstNode = node.Get<Expression> (0);
+			if (node.ChildNodes.Count == 2)
+				node.AstNode = new ArrayInExpression (node.Get<Expression> (0), node.Get<Expression> (1));
+		}
+
+		void create_ast_array_access_expression (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 1, 2);
+			if (node.ChildNodes.Count == 1)
+				node.AstNode = node.Get<Expression> (0);
+			if (node.ChildNodes.Count == 2)
+				node.AstNode = new ArrayAccessExpression (node.Get<Expression> (0), node.Get<Expression> (1));
+		}
+
+		void create_ast_unary_expression (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 1, 2);
+			if (node.ChildNodes.Count == 1)
+				node.AstNode = node.Get<Expression> (0);
+			if (node.ChildNodes.Count == 2)
+				node.AstNode = new UnaryExpression (node.ChildNodes [0].Term.Name, node.Get<Expression> (1));
+		}
+
+		void create_ast_primary_expression (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 1, 3);
+			if (node.ChildNodes.Count == 1) {
+				var obj = node.Get<object> (0);
+				if (obj is Literal)
+					node.AstNode = new ConstantExpression ((Literal) obj);
+				else
+					node.AstNode = obj;
+			}
+			else
+				node.AstNode = new ParenthesizedExpression (node.Get<Expression> (1));
+		}
+
+		void create_ast_member_reference_expression (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 1, 2);
+			if (node.ChildNodes.Count == 1)
+				node.AstNode = node.Get<Expression> (0);
+			if (node.ChildNodes.Count == 2)
+				node.AstNode = new ArrayAccessExpression (node.Get<Expression> (0), node.Get<Expression> (1));
+		}
+
+		void create_ast_type_name_wild (ParsingContext context, ParseTreeNode node)
 		{
 			string s = null;
-			foreach (var cn in parseNode.ChildNodes) {
+			foreach (var cn in node.ChildNodes) {
 				cn.Term.CreateAstNode (context, cn);
 				s += cn.AstNode;
 			}
-			parseNode.AstNode = s;
+			node.AstNode = s;
 		}
 
-		void create_ast_qualified_reference (ParsingContext context, ParseTreeNode parseNode)
+		void create_ast_qualified_reference (ParsingContext context, ParseTreeNode node)
 		{
-			string s = null;
-			foreach (var cn in parseNode.ChildNodes) {
-				cn.Term.CreateAstNode (context, cn);
-				s += cn.AstNode;
-			}
-			parseNode.AstNode = s;
+			ProcessChildrenCommon (context, node, 1, 2, 4);
+			if (node.ChildNodes.Count == 1)
+				node.AstNode = node.Get<string> (0);
+			if (node.ChildNodes.Count == 2)
+				node.AstNode = node.Get<string> (0) + "." + node.Get<string> (1);
+			if (node.ChildNodes.Count == 4)
+				node.AstNode = node.Get<string> (0) + ".<" + node.Get<string> (3) + ">";
 		}
 
-		void create_ast_qualified_reference_1 (ParsingContext context, ParseTreeNode parseNode)
+		void create_ast_semi_opt (ParsingContext context, ParseTreeNode node)
 		{
-			if (parseNode.ChildNodes.Count != 2) throw new Exception ();
-			var l = parseNode.ChildNodes [0];
-			var r = parseNode.ChildNodes [1];
-			l.Term.CreateAstNode (context, l);
-			r.Term.CreateAstNode (context, r);
-			string s = l.AstNode + "." + r.AstNode;
-			parseNode.AstNode = s;
+			node.AstNode = null;
 		}
 
-		void create_ast_qualified_reference_2 (ParsingContext context, ParseTreeNode parseNode)
+		void create_ast_literal (ParsingContext context, ParseTreeNode node)
 		{
-			string s = null;
-			foreach (var cn in parseNode.ChildNodes) {
-				cn.Term.CreateAstNode (context, cn);
-				s += cn.AstNode;
-			}
-			parseNode.AstNode = s;
-		}
-
-		void create_ast_semi_opt (ParsingContext context, ParseTreeNode parseNode)
-		{
-			parseNode.AstNode = null;
+			ProcessChildrenCommon (context, node, 1);
+			node.AstNode = new Literal (node.Get<object> (0));
 		}
 	}
 
@@ -513,22 +681,22 @@ namespace FreeActionScript
 	
 	public partial class BinaryExpression : Expression
 	{
-		public BinaryExpression (Expression left, Expression right, Operators oper)
+		public BinaryExpression (Expression left, Expression right, string oper)
 		{
 		}
 	}
 	
 	public partial class UnaryExpression : Expression
 	{
-		public UnaryExpression (Expression primary, Operators oper)
+		public UnaryExpression (string oper, Expression primary)
 		{
 		}
 	}
 
 	public partial class IncrementDecrementExpression : UnaryExpression
 	{
-		public IncrementDecrementExpression (Expression primary, Operators oper, bool isPostfix)
-			: base (primary, oper)
+		public IncrementDecrementExpression (string oper, Expression primary, bool isPostfix)
+			: base (oper, primary)
 		{
 		}
 	}
@@ -540,6 +708,13 @@ namespace FreeActionScript
 	public partial class ArrayAccessExpression : Expression, ILeftValue
 	{
 		public ArrayAccessExpression (Expression array, Expression index)
+		{
+		}
+	}
+
+	public partial class ArrayInExpression : Expression, ILeftValue
+	{
+		public ArrayInExpression (Expression threshold, Expression array)
 		{
 		}
 	}
@@ -558,11 +733,32 @@ namespace FreeActionScript
 		}
 	}
 
-	public partial class ArgumentDeclaration
+	public partial class CastAsExpression
 	{
-		public ArgumentDeclaration (Identifier name, TypeName type, Expression defaultValue)
+		public CastAsExpression (Expression primary, TypeName type)
 		{
 		}
+	}
+
+	public partial class ArgumentDeclaration
+	{
+		public ArgumentDeclaration (Identifier varArgName)
+		{
+			Name = varArgName;
+			IsVarArg = true;
+		}
+
+		public ArgumentDeclaration (Identifier name, TypeName type, Expression defaultValue)
+		{
+			Name = name;
+			Type = type;
+			DefaultValue = defaultValue;
+		}
+
+		public Identifier Name { get; set; }
+		public TypeName Type { get; set; }
+		public Expression DefaultValue { get; set; }
+		public bool IsVarArg { get; private set; }
 	}
 
 	public partial class NameReferenceExpression : Expression, ILeftValue
@@ -739,5 +935,29 @@ namespace FreeActionScript
 		public AssignmentExpression (ILeftValue lvalue, Expression rvalue)
 		{
 		}
+	}
+
+	public partial class ConstantExpression : Expression
+	{
+		public ConstantExpression (Literal rvalue)
+		{
+		}
+	}
+
+	public partial class ParenthezedExpression : Expression
+	{
+		public ParenthezedExpression (Expression content)
+		{
+		}
+	}
+
+	public partial class Literal : Expression
+	{
+		public Literal (object value)
+		{
+			Value = value;
+		}
+
+		public object Value { get; set; }
 	}
 }

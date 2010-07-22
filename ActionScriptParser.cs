@@ -556,7 +556,6 @@ event_decl.AstNodeCreator = create_ast_event_decl;
 event_decl_member.AstNodeCreator = create_ast_event_decl_member;
 access_modifier.AstNodeCreator = create_ast_select_single_child;
   class_members.AstNodeCreator = create_ast_simple_list<IClassMember>;
-class_member.AstNodeCreator = create_ast_class_member;
 member_header.AstNodeCreator = create_ast_simple_list<MemberHeader>;
 constant_declaration.AstNodeCreator = create_ast_constant_declaration;
 field_declaration.AstNodeCreator = create_ast_field_declaration;
@@ -581,8 +580,10 @@ return_statement.AstNodeCreator = create_ast_return_statement;
 function_call_statement.AstNodeCreator = create_ast_expression_statement;
 if_statement.AstNodeCreator = create_ast_if_statement;
 else_block.AstNodeCreator = create_ast_else_block;
+switch_statement.AstNodeCreator = create_ast_switch_statement;
   switch_cond_blocks.AstNodeCreator = create_ast_simple_list<SwitchBlock>;
 switch_cond_block.AstNodeCreator = create_ast_switch_cond_block;
+condition_label.AstNodeCreator = create_ast_condition_label;
 while_statement.AstNodeCreator = create_ast_while_statement;
 do_while_statement.AstNodeCreator = create_ast_do_while_statement;
 for_statement.AstNodeCreator = create_ast_for_statement;
@@ -630,18 +631,5 @@ type_name_wild.AstNodeCreator = create_ast_type_name_wild;
 //type_name.AstNodeCreator = create_ast_simple_list<TypeName>;
 semi_opt.AstNodeCreator = create_ast_semi_opt;
 		}
-
-void create_ast_event_decl (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_event_decl_members (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_event_decl_member (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_access_modifier (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_class_member (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_member_header (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-
-void create_ast_varargs_decl (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-
-void create_ast_switch_cond_blocks (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_switch_cond_block (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_for_in_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 	}
 }

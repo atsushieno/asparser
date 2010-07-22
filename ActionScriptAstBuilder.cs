@@ -169,6 +169,18 @@ namespace FreeActionScript
 			node.AstNode = new ClassDeclaration (node.Get<Identifier> (1), node.Get<TypeName> (2), node.Get<NamespaceUses> (3), node.Get<ClassMembers> (4));
 		}
 
+		void create_ast_event_decl (ParsingContext context, ParseTreeNode node) 
+		{
+			ProcessChildrenCommon (context, node, 4);
+			node.AstNode = new EventDeclaration (node.Get<TypeName> (0), node.Get<EventDeclarationMembers> (2));
+		}
+
+		void create_ast_event_decl_member (ParsingContext context, ParseTreeNode node) 
+		{
+			ProcessChildrenCommon (context, node, 3);
+			node.AstNode = new EventDeclarationMember (node.Get<Identifier> (0), node.Get<Literal> (2));
+		}
+
 		void create_ast_field_declaration (ParsingContext context, ParseTreeNode node) 
 		{
 			ProcessChildrenCommon (context, node, 4);
@@ -219,6 +231,12 @@ namespace FreeActionScript
 				node.AstNode = new ArgumentDeclaration (node.Get<Identifier> (0), node.Get<TypeName> (1), null);
 			else if (node.ChildNodes.Count == 3)
 				node.AstNode = new ArgumentDeclaration (node.Get<Identifier> (0), node.Get<TypeName> (1), node.Get<Expression> (2));
+		}
+
+		void create_ast_varargs_decl (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 2);
+			node.AstNode = new ArgumentDeclaration (node.Get<Identifier> (1));
 		}
 
 		void create_ast_assignment_opt (ParsingContext context, ParseTreeNode node)
@@ -282,10 +300,39 @@ namespace FreeActionScript
 			node.AstNode = node.Get<Statement> (1);
 		}
 
+		void create_ast_switch_statement (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 5);
+			var cond = node.Get<Expression> (2);
+			var blocks = node.Get<SwitchBlocks> (4);
+			node.AstNode = new SwitchStatement (cond, blocks);
+		}
+
+		void create_ast_switch_cond_block (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 2);
+			node.AstNode = new SwitchBlock (node.Get<object> (0), node.Get<Statements> (1));
+		}
+
+		void create_ast_condition_label (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 1, 2);
+			if (node.ChildNodes.Count == 1)
+				node.AstNode = SwitchBlock.Default;
+			else
+				node.AstNode = node.Get<object> (1);
+		}
+
 		void create_ast_for_statement (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 3);
-			node.AstNode = node.Get<ForStatement> (2);
+			node.AstNode = node.Get<Statement> (2); // ForStatement or ForInStatement
+		}
+
+		void create_ast_for_in_statement (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 5);
+			node.AstNode = new ForInStatement (node.Get<ForEachIterator> (0), node.Get<Expression> (2), node.Get<Statement> (4));
 		}
 
 		void create_ast_for_c_style_statement (ParsingContext context, ParseTreeNode node)
@@ -844,6 +891,7 @@ namespace FreeActionScript
 	{
 		public static readonly object Default = new object ();
 
+		// Identifier, Literal or Default above.
 		public SwitchBlock (object label, Statements statements)
 		{
 			Label = label;

@@ -9,7 +9,6 @@ using MemberHeaders = System.Collections.Generic.List<string>;
 using TypeName = System.String;
 using Identifier = System.String;
 using QualifiedReference = System.String;
-#if true
 using PackageContents = System.Collections.Generic.List<FreeActionScript.IPackageContent>;
 using NamespaceUses = System.Collections.Generic.List<FreeActionScript.NamespaceUse>;
 using EventDeclarations = System.Collections.Generic.List<FreeActionScript.EventDeclaration>;
@@ -20,28 +19,11 @@ using Statements = System.Collections.Generic.List<FreeActionScript.Statement>;
 using SwitchBlocks = System.Collections.Generic.List<FreeActionScript.SwitchBlock>;
 using ForIterators = System.Collections.Generic.List<FreeActionScript.IForIterator>;
 using ForAssignStatements = System.Collections.Generic.List<FreeActionScript.AssignmentExpressionStatement>;
-using TypedIdentifier = System.Collections.Generic.KeyValuePair<Identifier, TypeName>;
+using CatchBlocks = System.Collections.Generic.List<FreeActionScript.CatchBlock>;
 using ArgumentDeclarations = System.Collections.Generic.List<FreeActionScript.ArgumentDeclaration>;
 using NameValuePairs = System.Collections.Generic.List<FreeActionScript.NameValuePair>;
 using Expressions = System.Collections.Generic.List<FreeActionScript.Expression>;
 using HashItems = System.Collections.Generic.List<FreeActionScript.HashItem>;
-#else
-using PackageContents = System.Collections.Generic.List<object>;
-using NamespaceUses = System.Collections.Generic.List<object>;
-using EventDeclarations = System.Collections.Generic.List<object>;
-using EventDeclarationMembers = System.Collections.Generic.List<object>;
-using ClassMembers = System.Collections.Generic.List<object>;
-using FunctionCallArguments = System.Collections.Generic.List<object>;
-using Statements = System.Collections.Generic.List<object>;
-using SwitchBlocks = System.Collections.Generic.List<object>;
-using ForIterators = System.Collections.Generic.List<object>;
-using ForAssignStatements = System.Collections.Generic.List<object>;
-using TypedIdentifier = System.Collections.Generic.KeyValuePair<Identifier, TypeName>;
-using ArgumentDeclarations = System.Collections.Generic.List<object>;
-using NameValuePairs = System.Collections.Generic.List<object>;
-using Expressions = System.Collections.Generic.List<object>;
-using HashItems = System.Collections.Generic.List<object>;
-#endif
 
 namespace FreeActionScript
 {
@@ -169,6 +151,12 @@ namespace FreeActionScript
 			node.AstNode = new NamespaceDeclaration (node.Get<Identifier> (1));
 		}
 
+		void create_ast_namespace_use (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 3);
+			node.AstNode = new NamespaceUse (node.Get<Identifier> (2));
+		}
+
 		void create_ast_import (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 2);
@@ -185,6 +173,12 @@ namespace FreeActionScript
 		{
 			ProcessChildrenCommon (context, node, 4);
 			node.AstNode = new FieldDeclaration (node.Get<MemberHeaders> (0), node.Get<NameValuePairs> (2));
+		}
+
+		void create_ast_constant_declaration (ParsingContext context, ParseTreeNode node) 
+		{
+			ProcessChildrenCommon (context, node, 4);
+			node.AstNode = new ConstantDeclaration (node.Get<MemberHeaders> (0), node.Get<NameValuePairs> (2));
 		}
 
 		void create_ast_constructor (ParsingContext context, ParseTreeNode node) 
@@ -309,6 +303,73 @@ namespace FreeActionScript
 				node.AstNode = new ForInitializers (node.Get<LocalVariableDeclarationStatement> (0));
 		}
 
+		void create_ast_while_statement (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 5);
+			node.AstNode = new WhileStatement (node.Get<Expression> (1), node.Get<Statement> (3));
+		}
+
+		void create_ast_do_while_statement (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 6);
+			node.AstNode = new DoWhileStatement (node.Get<Statement> (1), node.Get<Expression> (4));
+		}
+
+		void create_ast_break_statement (ParsingContext context, ParseTreeNode node)
+		{
+			node.AstNode = new BreakStatement ();
+		}
+
+		void create_ast_continue_statement (ParsingContext context, ParseTreeNode node)
+		{
+			node.AstNode = new ContinueStatement ();
+		}
+
+		void create_ast_for_each_statement (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 8);
+			node.AstNode = new ForEachStatement (node.Get<ForEachIterator> (3), node.Get<Expression> (5), node.Get<Statement> (7));
+		}
+
+		void create_ast_for_each_iterator (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 1, 3);
+			if (node.ChildNodes.Count == 1)
+				node.AstNode = new ForEachIterator (node.Get<Identifier> (0));
+			else
+				node.AstNode = new ForEachIterator (node.Get<Identifier> (1), node.Get<TypeName> (2));
+		}
+
+		void create_ast_throw_statement (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 2);
+			node.AstNode = new ThrowStatement (node.Get<Expression> (0));
+		}
+
+		void create_ast_try_statement (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 4);
+			node.AstNode = new TryStatement (node.Get<BlockStatement> (1), node.Get<CatchBlocks> (2), node.Get<BlockStatement> (3));
+		}
+
+		void create_ast_catch_block (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 3);
+			node.AstNode = new CatchBlock (node.Get<TypedIdentifier> (1), node.Get<BlockStatement> (2));
+		}
+
+		void create_ast_exception_type_part (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 0, 4);
+			node.AstNode = node.ChildNodes.Count == 0 ? null : new TypedIdentifier (node.Get<Identifier> (1), node.Get<TypeName> (2));
+		}
+
+		void create_ast_finally_block (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 0, 2);
+			node.AstNode = node.ChildNodes.Count == 0 ? null : node.Get<BlockStatement> (1);
+		}
+
 		void create_ast_local_var_decl_statement (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 2);
@@ -429,6 +490,12 @@ namespace FreeActionScript
 			node.AstNode = new EmbeddedFunctionExpression (node.Get<FunctionDefinition> (1));
 		}
 
+		void create_ast_local_function_statement (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 1);
+			node.AstNode = new LocalFunctionStatement (node.Get<FunctionDefinition> (0));
+		}
+
 		void create_ast_member_reference_expression (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 1, 2);
@@ -468,6 +535,39 @@ namespace FreeActionScript
 		{
 			ProcessChildrenCommon (context, node, 1);
 			node.AstNode = new Literal (node.Get<object> (0));
+		}
+
+		void create_ast_new_object_expression (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 5);
+			node.AstNode = new NewObjectExpression (node.Get<TypeName> (1), node.Get<FunctionCallArguments> (3));
+		}
+
+		void create_ast_delete_statement (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 2);
+			node.AstNode = new DeleteStatement (node.Get<Expression> (0));
+		}
+
+		void create_ast_literal_array_expression (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 1);
+			node.AstNode = new LiteralArrayExpression (node.Get<Expressions> (0));
+		}
+
+		void create_ast_literal_hash_expression (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 1);
+			node.AstNode = new LiteralHashExpression (node.Get<HashItems> (0));
+		}
+
+		void create_ast_hash_item (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 2);
+			if (node.Get<object> (0) is Literal)
+				node.AstNode = new HashItem (node.Get<Literal> (0), node.Get<Expression> (1));
+			else
+				node.AstNode = new HashItem (node.Get<Identifier> (0), node.Get<Expression> (1));
 		}
 	}
 
@@ -586,21 +686,6 @@ namespace FreeActionScript
 		public MemberHeaders Headers { get; set; }
 	}
 
-	public partial class ConstantDeclaration : ClassMemberBase
-	{
-		public ConstantDeclaration (MemberHeaders headers, Identifier name, TypeName typeName, Expression value)
-			: base (headers)
-		{
-			Name = name;
-			TypeName = typeName;
-			Value = value;
-		}
-
-		public Identifier Name { get;set; }
-		public TypeName TypeName { get; set; }
-		public Expression Value { get; set; }
-	}
-
 	public partial class FieldDeclaration : ClassMemberBase
 	{
 		public FieldDeclaration (MemberHeaders headers, NameValuePairs nameValuePairs)
@@ -610,6 +695,14 @@ namespace FreeActionScript
 		}
 
 		public NameValuePairs NameValuePairs { get; set; }
+	}
+
+	public partial class ConstantDeclaration : FieldDeclaration
+	{
+		public ConstantDeclaration (MemberHeaders headers, NameValuePairs nameValuePairs)
+			: base (headers, nameValuePairs)
+		{
+		}
 	}
 
 	public partial class GeneralFunction : ClassMemberBase
@@ -631,7 +724,7 @@ namespace FreeActionScript
 		}
 	}
 
-	public partial class FunctionDefinition : IExpression, IStatement // could be embedded_function_expression or local_function_declaration
+	public partial class FunctionDefinition : IExpression // could be embedded_function_expression
 	{
 		public FunctionDefinition (ArgumentDeclarations args, TypeName returnType, Statements body)
 		{
@@ -653,12 +746,8 @@ namespace FreeActionScript
 	}
 
 	// statements
-
-	public interface IStatement
-	{
-	}
 	
-	public abstract class Statement : IStatement
+	public abstract class Statement
 	{
 	}
 
@@ -996,6 +1085,13 @@ namespace FreeActionScript
 		}
 	}
 
+	public partial class LocalFunctionStatement : Statement
+	{
+		public LocalFunctionStatement (FunctionDefinition func)
+		{
+		}
+	}
+
 	public enum Operators
 	{
 		Equality,
@@ -1027,6 +1123,13 @@ namespace FreeActionScript
 		IterateIn,
 		TypeIs,
 		CastAs,
+	}
+
+	public partial class TypedIdentifier
+	{
+		public TypedIdentifier (Identifier key, TypeName type)
+		{
+		}
 	}
 
 	public partial class NameValuePair
@@ -1087,14 +1190,14 @@ namespace FreeActionScript
 
 	public partial class TryStatement : Statement
 	{
-		public TryStatement (Statements statements, CatchBlock catchBlock, Statements finallyBlock)
+		public TryStatement (BlockStatement tryBlock, CatchBlocks catchBlocks, BlockStatement finallyBlock)
 		{
 		}
 	}
 	
 	public partial class CatchBlock
 	{
-		public CatchBlock (TypedIdentifier nameAndType, Statements statements)
+		public CatchBlock (TypedIdentifier nameAndType, BlockStatement statements)
 		{
 		}
 	}

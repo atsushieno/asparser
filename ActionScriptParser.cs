@@ -175,7 +175,7 @@ var statement = DefaultNonTerminal ("statement");
 var statement_lacking_colon_then_colon = DefaultNonTerminal ("statement_lacking_colon_then_colon");
 var statement_lacking_colon = DefaultNonTerminal ("statement_lacking_colon");
 
-var local_function_declaration = DefaultNonTerminal ("local_function_declaration");
+var local_function_statement = DefaultNonTerminal ("local_function_statement");
 var assign_statement = DefaultNonTerminal ("assign_statement");
 var calc_assign_statement = DefaultNonTerminal ("calc_assign_statement");
 var return_statement = DefaultNonTerminal ("return_statement");
@@ -208,7 +208,7 @@ var break_statement = DefaultNonTerminal ("break_statement");
 var continue_statement = DefaultNonTerminal ("continue_statement");
 var throw_statement = DefaultNonTerminal ("throw_statement");
 var try_statement = DefaultNonTerminal ("try_statement");
-var try_block = DefaultNonTerminal ("try_block");
+var catch_blocks = DefaultNonTerminal ("catch_blocks");
 var catch_block = DefaultNonTerminal ("catch_block");
 var exception_type_part = DefaultNonTerminal ("exception_type_part");
 var finally_block = DefaultNonTerminal ("finally_block");
@@ -278,7 +278,7 @@ class_member.Rule = constant_declaration | field_declaration | property_function
 member_header.Rule = MakeStarRule (member_header, null, access_modifier);
 
 // field and constant
-constant_declaration.Rule = member_header + keyword_const + identifier + ":" + type_name + "=" + expression + semi_opt;
+constant_declaration.Rule = member_header + keyword_const + name_value_pairs + semi_opt;
 field_declaration.Rule = member_header + keyword_var + name_value_pairs + semi_opt;
 assignment_opt.Rule = Empty | "=" + expression;
 
@@ -311,10 +311,10 @@ statement.Rule =
 	| for_each_statement
 	| block_statement
 	| try_statement
-	| local_function_declaration
+	| local_function_statement
 	;
 
-local_function_declaration.Rule = general_function_headless;
+local_function_statement.Rule = general_function_headless;
 
 statement_lacking_colon_then_colon.Rule = statement_lacking_colon + ";";
 
@@ -373,11 +373,11 @@ for_each_iterator.Rule = identifier | keyword_var + identifier + ":" + argument_
 break_statement.Rule = keyword_break;
 continue_statement.Rule = keyword_continue;
 throw_statement.Rule = keyword_throw + expression;
-try_statement.Rule = try_block + catch_block + finally_block;
-try_block.Rule = keyword_try + "{" + statements + "}";
-catch_block.Rule = keyword_catch + exception_type_part + "{" + statements + "}";
+try_statement.Rule = keyword_try + block_statement + catch_blocks + finally_block;
+catch_blocks.Rule = MakeStarRule (catch_blocks, null, catch_block);
+catch_block.Rule = keyword_catch + exception_type_part + block_statement;
 exception_type_part.Rule = Empty | ToTerm ("(") + identifier + ":" + type_name + ")";
-finally_block.Rule = Empty | keyword_finally + "{" + statements + "}";
+finally_block.Rule = Empty | keyword_finally + block_statement;
 block_statement.Rule = ToTerm ("{") + statements + "}";
 local_var_decl_statement.Rule = keyword_var + name_value_pairs;
 name_value_pairs.Rule = MakePlusRule (name_value_pairs, ToTerm (","), name_value_pair);
@@ -573,7 +573,7 @@ argument_decl.AstNodeCreator = create_ast_argument_decl;
 varargs_decl.AstNodeCreator = create_ast_varargs_decl;
 qualified_reference.AstNodeCreator = create_ast_qualified_reference;
   statements.AstNodeCreator = create_ast_simple_list<Statement>;
-local_function_declaration.AstNodeCreator = create_ast_local_function_declaration;
+local_function_statement.AstNodeCreator = create_ast_local_function_statement;
 statement_lacking_colon_then_colon.AstNodeCreator = create_ast_statement_lacking_colon_then_colon;
 assign_statement.AstNodeCreator = create_ast_assign_statement;
 calc_assign_statement.AstNodeCreator = create_ast_calc_assign_statement;
@@ -597,7 +597,7 @@ break_statement.AstNodeCreator = create_ast_break_statement;
 continue_statement.AstNodeCreator = create_ast_continue_statement;
 throw_statement.AstNodeCreator = create_ast_throw_statement;
 try_statement.AstNodeCreator = create_ast_try_statement;
-try_block.AstNodeCreator = create_ast_try_block;
+  catch_blocks.AstNodeCreator = create_ast_simple_list<CatchBlock>;
 catch_block.AstNodeCreator = create_ast_catch_block;
 exception_type_part.AstNodeCreator = create_ast_exception_type_part;
 finally_block.AstNodeCreator = create_ast_finally_block;
@@ -619,7 +619,6 @@ name_reference_expression.AstNodeCreator = create_ast_select_single_child;
 primary_expression.AstNodeCreator = create_ast_primary_expression;
 function_call_expression.AstNodeCreator = create_ast_function_call_expression;
   call_arguments.AstNodeCreator = create_ast_simple_list<Expression>;
-call_argument.AstNodeCreator = create_ast_call_argument;
 new_object_expression.AstNodeCreator = create_ast_new_object_expression;
 literal_array_expression.AstNodeCreator = create_ast_literal_array_expression;
   array_items.AstNodeCreator = create_ast_simple_list<Expression>;
@@ -632,42 +631,17 @@ type_name_wild.AstNodeCreator = create_ast_type_name_wild;
 semi_opt.AstNodeCreator = create_ast_semi_opt;
 		}
 
-void create_ast_namespace_use (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_event_decl (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_event_decl_members (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_event_decl_member (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_access_modifier (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_class_member (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_member_header (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_constant_declaration (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 
 void create_ast_varargs_decl (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 
-void create_ast_statements (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_local_function_declaration (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_function_call_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_switch_cond_blocks (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_switch_cond_block (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_while_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_do_while_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_for_in_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_for_each_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_for_each_iterator (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_break_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_continue_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_throw_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_try_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_try_block (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_catch_block (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_exception_type_part (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_finally_block (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_delete_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-
-void create_ast_name_reference_expression (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_call_argument (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_new_object_expression (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_literal_array_expression (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_literal_hash_expression (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_hash_item (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 	}
 }

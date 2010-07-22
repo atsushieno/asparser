@@ -530,7 +530,7 @@ Delimiters = "{}[](),:;+-*/%&|^!~<>=";
 RegisterPunctuation (";", ",", "{", "}", "[", "]", ":", ".", "?");
 
 MarkNotReported (keyword_package);
-MarkTransient (compile_unit_item, package_content, namespace_or_class_headless, class_member, property_function, argument_type, statement, statement_lacking_colon, expression, call_argument, lvalue, union_operator, unary_operator);
+MarkTransient (compile_unit_item, package_content, namespace_or_class_headless, class_member, property_function, argument_type, statement, statement_lacking_colon, for_statement_remaining, for_iterator, expression, call_argument, lvalue, union_operator, unary_operator);
 //MarkTransient (compile_unit_item, package_decl, package_content, class_member, statement, statement_lacking_colon, expression, conditional_expression, iteration_expression, or_expression, and_expression, equality_expression, relational_expression, additive_expression, multiplicative_expression, as_expression, shift_expression, union_expression, unary_expression, new_object_expression, general_function_headless, function_nameless, call_argument);
 
 
@@ -561,7 +561,6 @@ member_header.AstNodeCreator = create_ast_simple_list<MemberHeader>;
 constant_declaration.AstNodeCreator = create_ast_constant_declaration;
 field_declaration.AstNodeCreator = create_ast_field_declaration;
 assignment_opt.AstNodeCreator = create_ast_assignment_opt;
-property_function.AstNodeCreator = create_ast_property_function;
 property_getter.AstNodeCreator = create_ast_property_getter;
 property_setter.AstNodeCreator = create_ast_property_setter;
 function_body.AstNodeCreator = create_ast_function_body;
@@ -587,13 +586,11 @@ switch_cond_block.AstNodeCreator = create_ast_switch_cond_block;
 while_statement.AstNodeCreator = create_ast_while_statement;
 do_while_statement.AstNodeCreator = create_ast_do_while_statement;
 for_statement.AstNodeCreator = create_ast_for_statement;
-for_statement_remaining.AstNodeCreator = create_ast_for_statement_remaining;
 for_c_style_statement.AstNodeCreator = create_ast_for_c_style_statement;
 for_in_statement.AstNodeCreator = create_ast_for_in_statement;
 for_initializers.AstNodeCreator = create_ast_for_initializers;
   for_assign_statements.AstNodeCreator = create_ast_simple_list<AssignmentExpressionStatement>;
   for_iterators.AstNodeCreator = create_ast_simple_list<IForIterator>;
-for_iterator.AstNodeCreator = create_ast_for_iterator;
 for_each_statement.AstNodeCreator = create_ast_for_each_statement;
 for_each_iterator.AstNodeCreator = create_ast_for_each_iterator;
 break_statement.AstNodeCreator = create_ast_break_statement;
@@ -631,11 +628,10 @@ literal_hash_expression.AstNodeCreator = create_ast_literal_hash_expression;
 hash_item.AstNodeCreator = create_ast_hash_item;
 embedded_function_expression.AstNodeCreator = create_ast_embedded_function_expression;
 type_name_wild.AstNodeCreator = create_ast_type_name_wild;
-  type_name.AstNodeCreator = create_ast_simple_list<TypeName>;
+//type_name.AstNodeCreator = create_ast_simple_list<TypeName>;
 semi_opt.AstNodeCreator = create_ast_semi_opt;
 		}
 
-void create_ast_import (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_namespace_use (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_event_decl (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_event_decl_members (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
@@ -644,12 +640,7 @@ void create_ast_access_modifier (ParsingContext context, ParseTreeNode parseNode
 void create_ast_class_member (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_member_header (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_constant_declaration (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_field_declaration (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_property_function (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_property_getter (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_property_setter (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 
-void create_ast_constructor (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_varargs_decl (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 
 void create_ast_statements (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
@@ -659,14 +650,7 @@ void create_ast_switch_cond_blocks (ParsingContext context, ParseTreeNode parseN
 void create_ast_switch_cond_block (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_while_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_do_while_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_for_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_for_statement_remaining (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_for_c_style_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_for_in_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_for_initializers (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_for_assign_statements (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_for_iterators (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_for_iterator (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_for_each_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_for_each_iterator (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_break_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
@@ -677,11 +661,8 @@ void create_ast_try_block (ParsingContext context, ParseTreeNode parseNode) { no
 void create_ast_catch_block (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_exception_type_part (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_finally_block (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_block_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
-void create_ast_local_var_decl_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_delete_statement (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 
-void create_ast_inc_dec_expression (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_name_reference_expression (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_call_argument (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }
 void create_ast_new_object_expression (ParsingContext context, ParseTreeNode parseNode) { not_implemented (context, parseNode); }

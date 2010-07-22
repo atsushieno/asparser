@@ -169,10 +169,29 @@ namespace FreeActionScript
 			node.AstNode = new NamespaceDeclaration (node.Get<Identifier> (1));
 		}
 
+		void create_ast_import (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 2);
+			node.AstNode = new Import (node.Get<TypeName> (1));
+		}
+
 		void create_ast_class_decl (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 5);
 			node.AstNode = new ClassDeclaration (node.Get<Identifier> (1), node.Get<TypeName> (2), node.Get<NamespaceUses> (3), node.Get<ClassMembers> (4));
+		}
+
+		void create_ast_field_declaration (ParsingContext context, ParseTreeNode node) 
+		{
+			ProcessChildrenCommon (context, node, 4);
+			node.AstNode = new FieldDeclaration (node.Get<MemberHeaders> (0), node.Get<NameValuePairs> (2));
+		}
+
+		void create_ast_constructor (ParsingContext context, ParseTreeNode node) 
+		{
+			ProcessChildrenCommon (context, node, 6);
+			var fd = new FunctionDefinition (node.Get<Identifier> (1), node.Get<ArgumentDeclarations> (3), null, node.Get<Statements> (5));
+			node.AstNode = new Constructor (fd);
 		}
 
 		void create_ast_general_function (ParsingContext context, ParseTreeNode node) 
@@ -221,6 +240,19 @@ namespace FreeActionScript
 			node.AstNode = node.ChildNodes [0].AstNode;
 		}
 
+		void create_ast_property_getter (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 8);
+
+			node.AstNode = new PropertyGetter (node.Get<MemberHeaders> (0), node.Get<Identifier> (3), node.Get<TypeName> (6), node.Get<Statements> (7));
+		}
+
+		void create_ast_property_setter (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 10);
+			node.AstNode = new PropertySetter (node.Get<MemberHeaders> (0), node.Get<Identifier> (3), node.Get<Identifier> (5), node.Get<TypeName> (6), node.Get<Statements> (9));
+		}
+
 		void create_ast_statement_lacking_colon_then_colon (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 1);
@@ -231,6 +263,12 @@ namespace FreeActionScript
 		{
 			ProcessChildrenCommon (context, node, 2);
 			node.AstNode = new ReturnStatement (node.Get<Expression> (0));
+		}
+
+		void create_ast_block_statement (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 1);
+			node.AstNode = new BlockStatement (node.Get<Statements> (0));
 		}
 
 		void create_ast_if_statement (ParsingContext context, ParseTreeNode node)
@@ -248,6 +286,33 @@ namespace FreeActionScript
 			if (node.ChildNodes.Count == 0)
 				return; // empty
 			node.AstNode = node.Get<Statement> (1);
+		}
+
+		void create_ast_for_statement (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 3);
+			node.AstNode = node.Get<ForStatement> (2);
+		}
+
+		void create_ast_for_c_style_statement (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 5);
+			node.AstNode = new ForStatement (node.Get<ForInitializers> (0), node.Get<Expression> (1), node.Get<ForIterators> (2), node.Get<Statement> (4));
+		}
+
+		void create_ast_for_initializers (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 0, 1);
+			if (node.Get<object> (0) is ForAssignStatements)
+				node.AstNode = new ForInitializers (node.Get<ForAssignStatements> (0));
+			else
+				node.AstNode = new ForInitializers (node.Get<LocalVariableDeclarationStatement> (0));
+		}
+
+		void create_ast_local_var_decl_statement (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 2);
+			node.AstNode = new LocalVariableDeclarationStatement (node.Get<NameValuePairs> (1));
 		}
 
 		void create_ast_expression_statement (ParsingContext context, ParseTreeNode node)
@@ -317,6 +382,15 @@ namespace FreeActionScript
 
 //Console.Write (":: " + node.Term.Name); foreach (var cn in node.ChildNodes) Console.Write (" " + cn.Term.Name + "(" + cn.AstNode + ")"); Console.WriteLine ();
 
+		void create_ast_inc_dec_expression (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 2);
+			if (node.Get<object> (0) is Expression)
+				node.AstNode = new IncrementDecrementExpression (node.ChildNodes [1].Term.Name, node.Get<Expression> (0), true);
+			else
+				node.AstNode = new IncrementDecrementExpression (node.ChildNodes [0].Term.Name, node.Get<Expression> (1), false);
+		}
+
 		void create_ast_array_access_expression (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 1, 2);
@@ -379,9 +453,9 @@ namespace FreeActionScript
 			ProcessChildrenCommon (context, node, 1, 2, 4);
 			if (node.ChildNodes.Count == 1)
 				node.AstNode = node.Get<string> (0);
-			if (node.ChildNodes.Count == 2)
+			else if (node.ChildNodes.Count == 2)
 				node.AstNode = node.Get<string> (0) + "." + node.Get<string> (1);
-			if (node.ChildNodes.Count == 4)
+			else if (node.ChildNodes.Count == 4)
 				node.AstNode = node.Get<string> (0) + ".<" + node.Get<string> (3) + ">";
 		}
 
@@ -502,44 +576,59 @@ namespace FreeActionScript
 	{
 	}
 
-	public partial class ConstantDeclaration : IClassMember
+	public abstract class ClassMemberBase : IClassMember
 	{
-		public ConstantDeclaration (MemberHeaders headers, Identifier name, TypeName typeName, Expression value)
+		public ClassMemberBase (MemberHeaders headers)
 		{
 			Headers = headers;
+		}
+
+		public MemberHeaders Headers { get; set; }
+	}
+
+	public partial class ConstantDeclaration : ClassMemberBase
+	{
+		public ConstantDeclaration (MemberHeaders headers, Identifier name, TypeName typeName, Expression value)
+			: base (headers)
+		{
 			Name = name;
 			TypeName = typeName;
 			Value = value;
 		}
 
-		public MemberHeaders Headers { get; set; }
 		public Identifier Name { get;set; }
 		public TypeName TypeName { get; set; }
 		public Expression Value { get; set; }
 	}
 
-	public partial class FieldDeclaration : IClassMember
+	public partial class FieldDeclaration : ClassMemberBase
 	{
 		public FieldDeclaration (MemberHeaders headers, NameValuePairs nameValuePairs)
+			: base (headers)
 		{
-			Headers = headers;
 			NameValuePairs = nameValuePairs;
 		}
 
-		public MemberHeaders Headers { get; set; }
 		public NameValuePairs NameValuePairs { get; set; }
 	}
 
-	public partial class GeneralFunction : IClassMember
+	public partial class GeneralFunction : ClassMemberBase
 	{
 		public GeneralFunction (MemberHeaders headers, FunctionDefinition definition)
+			: base (headers)
 		{
-			Headers = headers;
 			Definition = definition;
 		}
 		
-		public MemberHeaders Headers { get; set; }
 		public FunctionDefinition Definition { get; set; }
+	}
+
+	public partial class Constructor : GeneralFunction
+	{
+		public Constructor (FunctionDefinition definition)
+			: base (null, definition)
+		{
+		}
 	}
 
 	public partial class FunctionDefinition : IExpression, IStatement // could be embedded_function_expression or local_function_declaration
@@ -551,18 +640,16 @@ namespace FreeActionScript
 			Body = body;
 		}
 		
+		public FunctionDefinition (Identifier name, ArgumentDeclarations args, TypeName returnType, Statements body)
+			: this (args, returnType, body)
+		{
+			Name = name;
+		}
+
 		public Identifier Name { get; set; } // could be null for anonymous functions
 		public ArgumentDeclarations Arguments { get; set; }
 		public TypeName ReturnTypeName { get; set; }
 		public Statements Body { get; set; }
-	}
-
-	public partial class Constructor : FunctionDefinition
-	{
-		public Constructor (Identifier typeName, ArgumentDeclarations args, Statements body)
-			: base (args, typeName, body)
-		{
-		}
 	}
 
 	// statements
@@ -602,7 +689,11 @@ namespace FreeActionScript
 	{
 	}
 
-	public partial class AssignmentExpressionStatement : ExpressionStatement, IForIterator
+	public interface ICalcAssignStatement : IForIterator
+	{
+	}
+
+	public partial class AssignmentExpressionStatement : ExpressionStatement, ICalcAssignStatement
 	{
 		public AssignmentExpressionStatement (Expression expr)
 			: base (expr)
@@ -769,7 +860,7 @@ namespace FreeActionScript
 		}
 	}
 
-	public partial class IncrementDecrementExpression : UnaryExpression
+	public partial class IncrementDecrementExpression : UnaryExpression, ICalcAssignStatement
 	{
 		public IncrementDecrementExpression (string oper, Expression primary, bool isPostfix)
 			: base (oper, primary)
@@ -945,23 +1036,25 @@ namespace FreeActionScript
 		}
 	}
 
-	public partial class LocalVariableDeclarationStatement
+	public partial class LocalVariableDeclarationStatement : Statement
 	{
 		public LocalVariableDeclarationStatement (NameValuePairs nameValuePairs)
 		{
 		}
 	}
 
-	public partial class PropertyGetter
+	public partial class PropertyGetter : GeneralFunction
 	{
 		public PropertyGetter (MemberHeaders headers, Identifier name, TypeName typeName, Statements statements)
+			: base (headers, new FunctionDefinition (name, new ArgumentDeclarations (), typeName, statements))
 		{
 		}
 	}
 
-	public partial class PropertySetter
+	public partial class PropertySetter : GeneralFunction
 	{
 		public PropertySetter (MemberHeaders headers, Identifier propName, Identifier argName, TypeName typeName, Statements statements)
+			: base (headers, new FunctionDefinition (propName, new ArgumentDeclarations (new ArgumentDeclaration [] {new ArgumentDeclaration (argName, typeName, null)}), typeName, statements))
 		{
 		}
 	}

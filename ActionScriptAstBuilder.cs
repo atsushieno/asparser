@@ -165,7 +165,7 @@ namespace FreeActionScript
 
 		void create_ast_namespace_decl (ParsingContext context, ParseTreeNode node)
 		{
-			ProcessChildrenCommon (context, node, 3);
+			ProcessChildrenCommon (context, node, 2);
 			node.AstNode = new NamespaceDeclaration (node.Get<Identifier> (1));
 		}
 
@@ -261,8 +261,8 @@ namespace FreeActionScript
 
 		void create_ast_return_statement (ParsingContext context, ParseTreeNode node)
 		{
-			ProcessChildrenCommon (context, node, 2);
-			node.AstNode = new ReturnStatement (node.Get<Expression> (0));
+			ProcessChildrenCommon (context, node, 1, 2);
+			node.AstNode = new ReturnStatement (node.ChildNodes.Count == 1 ? null : node.Get<Expression> (0));
 		}
 
 		void create_ast_block_statement (ParsingContext context, ParseTreeNode node)
@@ -332,11 +332,11 @@ namespace FreeActionScript
 
 		void create_ast_as_expression (ParsingContext context, ParseTreeNode node)
 		{
-			ProcessChildrenCommon (context, node, 1, 2);
+			ProcessChildrenCommon (context, node, 1, 3);
 			if (node.ChildNodes.Count == 1)
 				node.AstNode = node.Get<Expression> (0);
-			if (node.ChildNodes.Count == 2)
-				node.AstNode = new CastAsExpression (node.Get<Expression> (0), node.Get<TypeName> (1));
+			if (node.ChildNodes.Count == 3)
+				node.AstNode = new CastAsExpression (node.Get<Expression> (0), node.Get<TypeName> (2));
 		}
 
 		void create_ast_function_call_expression (ParsingContext context, ParseTreeNode node)
@@ -360,7 +360,7 @@ namespace FreeActionScript
 		{
 			ProcessChildrenCommon (context, node, 1, 3);
 			if (node.ChildNodes.Count == 1)
-				node.AstNode = node.Get<Expression> (0);
+				node.AstNode = new AssignmentExpressionStatement (node.Get<Expression> (0));
 			if (node.ChildNodes.Count == 3)
 				node.AstNode = new CalcAssignStatement (node.Get<ILeftValue> (0), node.Get<Expression> (2), node.ChildNodes [1].Term.Name);
 		}
@@ -373,11 +373,11 @@ namespace FreeActionScript
 
 		void create_ast_iteration_expression (ParsingContext context, ParseTreeNode node)
 		{
-			ProcessChildrenCommon (context, node, 1, 2);
+			ProcessChildrenCommon (context, node, 1, 3);
 			if (node.ChildNodes.Count == 1)
 				node.AstNode = node.Get<Expression> (0);
-			if (node.ChildNodes.Count == 2)
-				node.AstNode = new ArrayInExpression (node.Get<Expression> (0), node.Get<Expression> (1));
+			if (node.ChildNodes.Count == 3)
+				node.AstNode = new ArrayInExpression (node.Get<Expression> (0), node.Get<Expression> (2));
 		}
 
 //Console.Write (":: " + node.Term.Name); foreach (var cn in node.ChildNodes) Console.Write (" " + cn.Term.Name + "(" + cn.AstNode + ")"); Console.WriteLine ();
@@ -425,8 +425,8 @@ namespace FreeActionScript
 
 		void create_ast_embedded_function_expression (ParsingContext context, ParseTreeNode node)
 		{
-			ProcessChildrenCommon (context, node, 1);
-			node.AstNode = new EmbeddedFunctionExpression (node.Get<FunctionDefinition> (0));
+			ProcessChildrenCommon (context, node, 2);
+			node.AstNode = new EmbeddedFunctionExpression (node.Get<FunctionDefinition> (1));
 		}
 
 		void create_ast_member_reference_expression (ParsingContext context, ParseTreeNode node)
@@ -900,7 +900,7 @@ namespace FreeActionScript
 		}
 	}
 
-	public partial class CastAsExpression
+	public partial class CastAsExpression : Expression
 	{
 		public CastAsExpression (Expression primary, TypeName type)
 		{
@@ -1099,7 +1099,7 @@ namespace FreeActionScript
 		}
 	}
 
-	public partial class CalcAssignStatement : Statement
+	public partial class CalcAssignStatement : Statement, ICalcAssignStatement
 	{
 		public CalcAssignStatement (ILeftValue left, Expression right, string oper)
 		{

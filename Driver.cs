@@ -84,7 +84,7 @@ namespace FreeActionScript
 				grammar.CreateAstNode (parser.Context, pt.Root);
 				trees.Add (pt);
 				
-				break;
+//				break;
 			}
 			//Console.WriteLine (ParserDataPrinter.PrintStateList (parser.Language));
 #else

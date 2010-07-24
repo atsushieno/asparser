@@ -169,7 +169,6 @@ var type_name = qualified_reference;//DefaultNonTerminal ("type_name");
 var member_reference = DefaultNonTerminal ("member_reference");
 var assignment_opt = DefaultNonTerminal ("assignment_opt");
 var lvalue = DefaultNonTerminal ("lvalue");
-var function_body = DefaultNonTerminal ("function_body");
 var statements = DefaultNonTerminal ("statements");
 var statement = DefaultNonTerminal ("statement");
 var statement_lacking_colon_then_colon = DefaultNonTerminal ("statement_lacking_colon_then_colon");
@@ -284,13 +283,12 @@ assignment_opt.Rule = Empty | "=" + expression;
 
 // functions
 property_function.Rule = property_getter | property_setter;
-property_getter.Rule = member_header + keyword_function + keyword_get + identifier + "(" + ")" + ":" + type_name + "{" + function_body + "}";
-property_setter.Rule = member_header + keyword_function + keyword_set + identifier + "(" + identifier + ":" + type_name + ")" + ":" + "void" + "{" + function_body + "}";
-function_body.Rule = statements;
+property_getter.Rule = member_header + keyword_function + keyword_get + identifier + "(" + ")" + ":" + type_name + block_statement;
+property_setter.Rule = member_header + keyword_function + keyword_set + identifier + "(" + identifier + ":" + type_name + ")" + ":" + "void" + block_statement;
 general_function.Rule = member_header + general_function_headless;
 general_function_headless.Rule = keyword_function + identifier + function_nameless;
-function_nameless.Rule = "(" + argument_decls + ")" + (Empty | ":" + type_name_wild) + "{" + function_body + "}";
-constructor.Rule = keyword_function + identifier + "(" + argument_decls + ")" + "{" + function_body + "}";
+function_nameless.Rule = "(" + argument_decls + ")" + (Empty | ":" + type_name_wild) + block_statement;
+constructor.Rule = keyword_function + identifier + "(" + argument_decls + ")" + block_statement;
 argument_decls.Rule = MakeStarRule (named_argument_decls, ToTerm (","), argument_decl);
 argument_decl.Rule = // FIXME: there is an ambiguation issue; on foo.<bar>=baz ">=" conflicts with comparison operator.
 	identifier + ":" + argument_type + assignment_opt
@@ -562,7 +560,6 @@ field_declaration.AstNodeCreator = create_ast_field_declaration;
 assignment_opt.AstNodeCreator = create_ast_assignment_opt;
 property_getter.AstNodeCreator = create_ast_property_getter;
 property_setter.AstNodeCreator = create_ast_property_setter;
-function_body.AstNodeCreator = create_ast_function_body;
 general_function.AstNodeCreator = create_ast_general_function;
 general_function_headless.AstNodeCreator = create_ast_general_function_headless;
 function_nameless.AstNodeCreator = create_ast_function_nameless;

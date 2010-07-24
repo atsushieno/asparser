@@ -27,46 +27,8 @@ using HashItems = System.Collections.Generic.List<FreeActionScript.HashItem>;
 
 namespace FreeActionScript
 {
-	/*
-	public class ActionScriptAstBuilder
-	{
-		public static ActionScriptAstNode Build (ParseTree ast)
-		{
-			return new ActionScriptAstConverter (ast).Build ();
-		}
-
-		ParseTree source;
-		ActionScriptAstNode result;
-
-		ActionScriptAstBuilder (ParseTree ast)
-		{
-			source = ast;
-			result = new ActionScriptAstNode ();
-		}
-
-		void Build ()
-		{
-		}
-	}
-
-	public abstract class ActionScriptAstNode
-	{
-		public ActionScriptAstNode (AstNode source)
-		{
-		}
-
-		public string Name { get; set; }
-
-		public IList<ActionScriptAstNode> SubNodes { get; set; }
-
-		public abstract ActionScriptAstNode Resolve ();
-	}
-	*/
-
 	public partial class ActionScriptGrammar
 	{
-		object dummy = new object ();
-
 		protected void ProcessChildrenCommon (ParsingContext ctx, ParseTreeNode node, params int [] expectedChildCounts)
 		{
 			if (expectedChildCounts.Length > 0 && Array.IndexOf (expectedChildCounts, node.ChildNodes.Count) < 0)
@@ -196,7 +158,7 @@ namespace FreeActionScript
 		void create_ast_constructor (ParsingContext context, ParseTreeNode node) 
 		{
 			ProcessChildrenCommon (context, node, 6);
-			var fd = new FunctionDefinition (node.Get<Identifier> (1), node.Get<ArgumentDeclarations> (3), null, node.Get<Statements> (5));
+			var fd = new FunctionDefinition (node.Get<Identifier> (1), node.Get<ArgumentDeclarations> (3), null, node.Get<BlockStatement> (5));
 			node.AstNode = new Constructor (fd);
 		}
 
@@ -217,7 +179,7 @@ namespace FreeActionScript
 		void create_ast_function_nameless (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 5);
-			node.AstNode = new FunctionDefinition (node.Get<ArgumentDeclarations> (1), node.Get<TypeName> (3), node.Get<Statements> (4));
+			node.AstNode = new FunctionDefinition (node.Get<ArgumentDeclarations> (1), node.Get<TypeName> (3), node.Get<BlockStatement> (4));
 		}
 
 		void create_ast_argument_decl (ParsingContext context, ParseTreeNode node)
@@ -246,23 +208,17 @@ namespace FreeActionScript
 				node.AstNode = node.Get<Expression> (1);
 		}
 
-		void create_ast_function_body (ParsingContext context, ParseTreeNode node)
-		{
-			ProcessChildrenCommon (context, node, 1);
-			node.AstNode = node.ChildNodes [0].AstNode;
-		}
-
 		void create_ast_property_getter (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 8);
 
-			node.AstNode = new PropertyGetter (node.Get<MemberHeaders> (0), node.Get<Identifier> (3), node.Get<TypeName> (6), node.Get<Statements> (7));
+			node.AstNode = new PropertyGetter (node.Get<MemberHeaders> (0), node.Get<Identifier> (3), node.Get<TypeName> (6), node.Get<BlockStatement> (7));
 		}
 
 		void create_ast_property_setter (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 10);
-			node.AstNode = new PropertySetter (node.Get<MemberHeaders> (0), node.Get<Identifier> (3), node.Get<Identifier> (5), node.Get<TypeName> (6), node.Get<Statements> (9));
+			node.AstNode = new PropertySetter (node.Get<MemberHeaders> (0), node.Get<Identifier> (3), node.Get<Identifier> (5), node.Get<TypeName> (6), node.Get<BlockStatement> (9));
 		}
 
 		void create_ast_statement_lacking_colon_then_colon (ParsingContext context, ParseTreeNode node)
@@ -521,11 +477,14 @@ namespace FreeActionScript
 		{
 			ProcessChildrenCommon (context, node, 1, 3);
 			if (node.ChildNodes.Count == 1) {
+				node.AstNode = node.Get<object> (0);
+				/*
 				var obj = node.Get<object> (0);
 				if (obj is Literal)
 					node.AstNode = new ConstantExpression ((Literal) obj);
 				else
 					node.AstNode = obj;
+				*/
 			}
 			else
 				node.AstNode = new ParenthesizedExpression (node.Get<Expression> (1));
@@ -619,7 +578,7 @@ namespace FreeActionScript
 	}
 
 
-	public interface ICompileUnitItem
+	public partial interface ICompileUnitItem
 	{
 	}
 
@@ -773,14 +732,14 @@ namespace FreeActionScript
 
 	public partial class FunctionDefinition : IExpression // could be embedded_function_expression
 	{
-		public FunctionDefinition (ArgumentDeclarations args, TypeName returnType, Statements body)
+		public FunctionDefinition (ArgumentDeclarations args, TypeName returnType, BlockStatement body)
 		{
 			Arguments = args;
 			ReturnTypeName = returnType;
 			Body = body;
 		}
 		
-		public FunctionDefinition (Identifier name, ArgumentDeclarations args, TypeName returnType, Statements body)
+		public FunctionDefinition (Identifier name, ArgumentDeclarations args, TypeName returnType, BlockStatement body)
 			: this (args, returnType, body)
 		{
 			Name = name;
@@ -789,12 +748,12 @@ namespace FreeActionScript
 		public Identifier Name { get; set; } // could be null for anonymous functions
 		public ArgumentDeclarations Arguments { get; set; }
 		public TypeName ReturnTypeName { get; set; }
-		public Statements Body { get; set; }
+		public BlockStatement Body { get; set; }
 	}
 
 	// statements
 	
-	public abstract class Statement
+	public abstract partial class Statement
 	{
 	}
 
@@ -821,7 +780,7 @@ namespace FreeActionScript
 		ShiftRight
 	}
 
-	public interface IForIterator
+	public partial interface IForIterator
 	{
 	}
 
@@ -906,64 +865,107 @@ namespace FreeActionScript
 	{
 		public WhileStatement (Expression cond, Statement body)
 		{
+			Condition = cond;
+			Body = body;
 		}
+
+		public Expression Condition { get; set; }
+		public Statement Body { get; set; }
 	}
 	
 	public partial class DoWhileStatement : Statement
 	{
 		public DoWhileStatement (Statement body, Expression cond)
 		{
+			Body = body;
+			Condition = cond;
 		}
+
+		public Expression Condition { get; set; }
+		public Statement Body { get; set; }
 	}
 
 	public partial class ForStatement : Statement
 	{
 		public ForStatement (ForInitializers init, Expression cond, ForIterators iter, Statement body)
 		{
+			Initializers = init;
+			Condition = cond;
+			Iterators = iter;
+			Body = body;
 		}
+		
+		public ForInitializers Initializers {get; set; }
+		public Expression Condition { get; set; }
+		public ForIterators Iterators { get; set; }
+		public Statement Body { get; set; }
 	}
 
 	public partial class ForInStatement : Statement
 	{
-		public ForInStatement (ForEachIterator iter, Expression cond, Statement body)
+		public ForInStatement (ForEachIterator iter, Expression target, Statement body)
 		{
+			Iterator = iter;
+			Target = target;
+			Body = body;
 		}
+		
+		public ForEachIterator Iterator { get; set; }
+		public Expression Target { get; set; }
+		public Statement Body { get; set; }
 	}
 
 	public partial class ForInitializers
 	{
 		public ForInitializers (LocalVariableDeclarationStatement vardecl)
 		{
+			LocalVariables = vardecl;
 		}
 
 		public ForInitializers (ForAssignStatements assigns)
 		{
+			AssignStatements = assigns;
 		}
+
+		LocalVariableDeclarationStatement LocalVariables { get; set; }
+		ForAssignStatements AssignStatements { get; set; }
 	}
 
 	public partial class ForEachIterator
 	{
 		public ForEachIterator (Identifier existingIdent)
 		{
+			Name = existingIdent;
 		}
 
 		public ForEachIterator (Identifier newLocalVar, TypeName type)
 		{
+			Name = newLocalVar;
+			LocalVariableType = type;
 		}
+
+		public Identifier Name { get; set; }
+		public TypeName LocalVariableType { get; set; }
 	}
 
 	public partial class BlockStatement : Statement
 	{
 		public BlockStatement (Statements stmts)
 		{
+			Statements = stmts;
 		}
+		
+		public Statements Statements { get; set; }
 	}
 
 	public partial class DeleteStatement : Statement
 	{
 		public DeleteStatement (Expression target)
 		{
+			Target = target;
 		}
+		
+		public Expression Target { get; set; }
 	}
 
 	// expressions
@@ -978,23 +980,42 @@ namespace FreeActionScript
 
 	public partial class ConditionalExpression : Expression
 	{
-		public ConditionalExpression (Expression cond, Expression trueExpr, Expression falseExpr)
+		public ConditionalExpression (Expression cond, Expression trueValue, Expression falseValue)
 		{
+			Condition = cond;
+			TrueValue = trueValue;
+			FalseValue = falseValue;
 		}
+
+		public Expression Condition { get; set; }
+		public Expression TrueValue { get; set; }
+		public Expression FalseValue { get; set; }
 	}
 	
 	public partial class BinaryExpression : Expression
 	{
 		public BinaryExpression (Expression left, Expression right, string oper)
 		{
+			Left = left;
+			Right = right;
+			Operator = oper;
 		}
+		
+		public Expression Left { get; set; }
+		public Expression Right { get; set; }
+		public string Operator { get; set; }
 	}
 	
 	public partial class UnaryExpression : Expression
 	{
 		public UnaryExpression (string oper, Expression primary)
 		{
+			Operator = oper;
+			Primary = primary;
 		}
+
+		public Expression Primary { get; set; }
+		public string Operator { get; set; }
 	}
 
 	public partial class IncrementDecrementExpression : UnaryExpression, ICalcAssignStatement
@@ -1002,7 +1023,10 @@ namespace FreeActionScript
 		public IncrementDecrementExpression (string oper, Expression primary, bool isPostfix)
 			: base (oper, primary)
 		{
+			IsPostfix = isPostfix;
 		}
+
+		public bool IsPostfix { get; set; }
 	}
 	
 	public interface ILeftValue // things that can be lvalue
@@ -1013,35 +1037,58 @@ namespace FreeActionScript
 	{
 		public ArrayAccessExpression (Expression array, Expression index)
 		{
+			Array = array;
+			Index = index;
 		}
+		
+		public Expression Array { get; set; }
+		public Expression Index { get; set; }
 	}
 
 	public partial class ArrayInExpression : Expression, ILeftValue
 	{
 		public ArrayInExpression (Expression threshold, Expression array)
 		{
+			Array = array;
+			Threshold = threshold;
 		}
+
+		public Expression Array { get; set; }
+		public Expression Threshold { get; set; }
 	}
 
 	public partial class ParenthesizedExpression : Expression
 	{
 		public ParenthesizedExpression (Expression content)
 		{
+			Content = content;
 		}
+
+		public Expression Content { get; set; }
 	}
 
 	public partial class FunctionCallExpression : Expression
 	{
-		public FunctionCallExpression (Expression member, FunctionCallArguments args)
+		public FunctionCallExpression (Expression target, FunctionCallArguments args)
 		{
+			Target = target;
+			Arguments = args;
 		}
+
+		public Expression Target { get; set; }
+		public FunctionCallArguments Arguments { get; set; }
 	}
 
 	public partial class CastAsExpression : Expression
 	{
 		public CastAsExpression (Expression primary, TypeName type)
 		{
+			Primary = primary;
+			Type = type;
 		}
+		
+		public Expression Primary { get; set; }
+		public TypeName Type { get; set; }
 	}
 
 	public partial class ArgumentDeclaration
@@ -1069,7 +1116,10 @@ namespace FreeActionScript
 	{
 		public NameReferenceExpression (NameReference target)
 		{
+			Target = target;
 		}
+
+		public NameReference Target { get; set; }
 	}
 
 	public enum MemberAccessType
@@ -1083,22 +1133,35 @@ namespace FreeActionScript
 	{
 		public NameReference (Identifier member)
 		{
+			Member = member;
 		}
 
 		public NameReference (Expression target, Identifier member, MemberAccessType accessType)
 		{
+			Target = target;
+			Member = member;
+			AccessType = accessType;
 		}
 
 		//public NameReference (Expression target, TypeName genericSubtype, MemberAccessType accessType)
 		//{
 		//}
+
+		public Expression Target { get; set; }
+		public Identifier Member { get; set; }
+		public MemberAccessType AccessType { get; set; }
 	}
 
 	public partial class NewObjectExpression : Expression
 	{
 		public NewObjectExpression (TypeName name, FunctionCallArguments args)
 		{
+			Name = name;
+			Arguments = args;
 		}
+		
+		public TypeName Name { get; set; }
+		public FunctionCallArguments Arguments { get; set; }
 	}
 	
 	public partial class LiteralArrayExpression : Expression
@@ -1175,37 +1238,50 @@ namespace FreeActionScript
 
 	public partial class TypedIdentifier
 	{
-		public TypedIdentifier (Identifier key, TypeName type)
+		public TypedIdentifier (Identifier name, TypeName type)
 		{
+			Name = name;
+			Type = type;
 		}
+		
+		public Identifier Name { get; set; }
+		public TypeName Type { get; set; }
 	}
 
 	public partial class NameValuePair
 	{
-		public NameValuePair (Identifier key, Expression value)
+		public NameValuePair (Identifier name, Expression value)
 		{
+			Name = name;
+			Value = value;
 		}
+		
+		public Identifier Name { get; set; }
+		public Expression Value { get; set; }
 	}
 
 	public partial class LocalVariableDeclarationStatement : Statement
 	{
 		public LocalVariableDeclarationStatement (NameValuePairs nameValuePairs)
 		{
+			Pairs = nameValuePairs;
 		}
+		
+		NameValuePairs Pairs { get; set; }
 	}
 
 	public partial class PropertyGetter : GeneralFunction
 	{
-		public PropertyGetter (MemberHeaders headers, Identifier name, TypeName typeName, Statements statements)
-			: base (headers, new FunctionDefinition (name, new ArgumentDeclarations (), typeName, statements))
+		public PropertyGetter (MemberHeaders headers, Identifier name, TypeName typeName, BlockStatement body)
+			: base (headers, new FunctionDefinition (name, new ArgumentDeclarations (), typeName, body))
 		{
 		}
 	}
 
 	public partial class PropertySetter : GeneralFunction
 	{
-		public PropertySetter (MemberHeaders headers, Identifier propName, Identifier argName, TypeName typeName, Statements statements)
-			: base (headers, new FunctionDefinition (propName, new ArgumentDeclarations (new ArgumentDeclaration [] {new ArgumentDeclaration (argName, typeName, null)}), typeName, statements))
+		public PropertySetter (MemberHeaders headers, Identifier propName, Identifier argName, TypeName typeName, BlockStatement body)
+			: base (headers, new FunctionDefinition (propName, new ArgumentDeclarations (new ArgumentDeclaration [] {new ArgumentDeclaration (argName, typeName, null)}), typeName, body))
 		{
 		}
 	}
@@ -1233,42 +1309,73 @@ namespace FreeActionScript
 	{
 		public ThrowStatement (Expression target)
 		{
+			Target = target;
 		}
+
+		public Expression Target { get; set; }
 	}
 
 	public partial class TryStatement : Statement
 	{
 		public TryStatement (BlockStatement tryBlock, CatchBlocks catchBlocks, BlockStatement finallyBlock)
 		{
+			TryBlock = tryBlock;
+			CatchBlocks = catchBlocks;
+			FinallyBlock = finallyBlock;
 		}
+		
+		public BlockStatement TryBlock { get; set; }
+		public CatchBlocks CatchBlocks { get; set; }
+		public BlockStatement FinallyBlock { get; set; }
 	}
 	
 	public partial class CatchBlock
 	{
-		public CatchBlock (TypedIdentifier nameAndType, BlockStatement statements)
+		public CatchBlock (TypedIdentifier nameAndType, BlockStatement block)
 		{
+			NameAndType = nameAndType;
+			Block = block;
 		}
+		
+		public TypedIdentifier NameAndType { get; set; }
+		public BlockStatement Block { get; set; }
 	}
 
 	public partial class CalcAssignStatement : Statement, ICalcAssignStatement
 	{
 		public CalcAssignStatement (ILeftValue left, Expression right, string oper)
 		{
+			Left = left;
+			Right = right;
+			Operator = oper;
 		}
+		
+		public ILeftValue Left { get; set; }
+		public Expression Right { get; set; }
+		public string Operator { get; set; }
 	}
 
 	public partial class AssignmentExpression : Expression
 	{
 		public AssignmentExpression (ILeftValue lvalue, Expression rvalue)
 		{
+			Left = lvalue;
+			Right = rvalue;
 		}
+
+		public ILeftValue Left { get; set; }
+		public Expression Right { get; set; }
 	}
 
+	/*
 	public partial class ConstantExpression : Expression
 	{
-		public ConstantExpression (Literal rvalue)
+		public ConstantExpression (Literal value)
 		{
+			Value = value;
 		}
+		
+		public Literal Value { get; set; }
 	}
 
 	public partial class ParenthezedExpression : Expression
@@ -1277,6 +1384,7 @@ namespace FreeActionScript
 		{
 		}
 	}
+	*/
 
 	public partial class Literal : Expression
 	{

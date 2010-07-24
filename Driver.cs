@@ -69,7 +69,7 @@ namespace FreeActionScript
 
 			var grammar = new ActionScriptGrammar ();
 			var parser = new Parser (grammar);
-#if true
+
 			string [] files = File.ReadAllLines (args [0]);
 			var trees = new List<ParseTree> ();
 			foreach (var arg in files) {
@@ -86,15 +86,9 @@ namespace FreeActionScript
 				
 //				break;
 			}
-			//Console.WriteLine (ParserDataPrinter.PrintStateList (parser.Language));
-#else
 #if false
-			ProcessParseTreeNode (parser.Root);
-#else
-			foreach (var pt in trees) {
-				Console.WriteLine (pt.AstNode);
-			}
-#endif
+			foreach (var tree in trees)
+				new CSharpCodeGenerator ((CompileUnit) tree.Root.AstNode, Console.Out).GenerateCode ();
 #endif
 		}
 	}

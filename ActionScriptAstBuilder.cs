@@ -12,7 +12,7 @@ using QualifiedReference = System.String;
 using PackageContents = System.Collections.Generic.List<FreeActionScript.IPackageContent>;
 using NamespaceUses = System.Collections.Generic.List<FreeActionScript.NamespaceUse>;
 using EventDeclarations = System.Collections.Generic.List<FreeActionScript.EventDeclaration>;
-using EventDeclarationMembers = System.Collections.Generic.List<FreeActionScript.EventDeclarationMember>;
+//using EventDeclarationMembers = System.Collections.Generic.List<FreeActionScript.EventDeclarationMember>;
 using ClassMembers = System.Collections.Generic.List<FreeActionScript.IClassMember>;
 using FunctionCallArguments = System.Collections.Generic.List<FreeActionScript.Expression>;
 using Statements = System.Collections.Generic.List<FreeActionScript.Statement>;
@@ -134,13 +134,13 @@ namespace FreeActionScript
 		void create_ast_event_decl (ParsingContext context, ParseTreeNode node) 
 		{
 			ProcessChildrenCommon (context, node, 4);
-			node.AstNode = new EventDeclaration (node.Get<TypeName> (0), node.Get<EventDeclarationMembers> (2));
+			node.AstNode = new EventDeclaration (node.Get<TypeName> (0), node.Get<NameValuePairs> (2));
 		}
 
 		void create_ast_event_decl_member (ParsingContext context, ParseTreeNode node) 
 		{
 			ProcessChildrenCommon (context, node, 3);
-			node.AstNode = new EventDeclarationMember (node.Get<Identifier> (0), node.Get<Literal> (2));
+			node.AstNode = new NameValuePair (node.Get<Identifier> (0), node.Get<Literal> (2));
 		}
 
 		void create_ast_field_declaration (ParsingContext context, ParseTreeNode node) 
@@ -540,7 +540,10 @@ namespace FreeActionScript
 		void create_ast_literal (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 1);
-			node.AstNode = new Literal (node.Get<object> (0));
+			if (node.ChildNodes [0].Term.Name == "null")
+				node.AstNode = new Literal (null);
+			else
+				node.AstNode = new Literal (node.Get<object> (0));
 		}
 
 		void create_ast_new_object_expression (ParsingContext context, ParseTreeNode node)
@@ -612,17 +615,29 @@ namespace FreeActionScript
 
 	public partial class EventDeclaration
 	{
-		public EventDeclaration (TypeName name, EventDeclarationMembers members)
+		public EventDeclaration (TypeName name, NameValuePairs members)
 		{
+			Name = name;
+			Members = members;
 		}
+
+		public TypeName Name { get; set; }
+		public NameValuePairs Members { get; set; }
 	}
 	
+	/*
 	public partial class EventDeclarationMember
 	{
 		public EventDeclarationMember (Identifier name, Literal value)
 		{
+			Name = name;
+			Value = value;
 		}
+		
+		public Identifier Name { get; set; }
+		public Literal Value { get; set; }
 	}
+	*/
 
 	public partial class ClassDeclaration : ICompileUnitItem, IPackageContent, INamespaceOrClass
 	{
@@ -652,7 +667,7 @@ namespace FreeActionScript
 		public Identifier Name { get; set; }
 	}
 
-	public interface IPackageContent
+	public partial interface IPackageContent
 	{
 	}
 
@@ -678,11 +693,11 @@ namespace FreeActionScript
 		public Identifier Name { get; set; }
 	}
 
-	public interface IClassMember
+	public partial interface IClassMember
 	{
 	}
 
-	public abstract class ClassMemberBase : IClassMember
+	public abstract partial class ClassMemberBase : IClassMember
 	{
 		public ClassMemberBase (MemberHeaders headers)
 		{
@@ -974,7 +989,7 @@ namespace FreeActionScript
 	{
 	}
 
-	public abstract class Expression : IExpression
+	public abstract partial class Expression : IExpression
 	{
 	}
 
@@ -1029,7 +1044,7 @@ namespace FreeActionScript
 		public bool IsPostfix { get; set; }
 	}
 	
-	public interface ILeftValue // things that can be lvalue
+	public partial interface ILeftValue // things that can be lvalue
 	{
 	}
 	
@@ -1168,7 +1183,10 @@ namespace FreeActionScript
 	{
 		public LiteralArrayExpression (Expressions values)
 		{
+			Values = values;
 		}
+		
+		public Expressions Values { get; set; }
 	}
 
 	public partial class LiteralHashExpression : Expression

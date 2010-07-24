@@ -32,6 +32,14 @@ namespace FreeActionScript
 		
 		public static T Get<T> (this ParseTreeNode node, int index)
 		{
+			var x = node.ChildNodes [index].AstNode;
+			if (x == null)
+				throw new InvalidOperationException (String.Format ("Node {0} child {1} has null AstNode", node.Term.Name, index));
+			return (T) x;
+		}
+
+		public static T GetNullable<T> (this ParseTreeNode node, int index)
+		{
 			return (T) node.ChildNodes [index].AstNode;
 		}
 	}
@@ -128,7 +136,6 @@ KeyTerm keyword_as = Keyword ("as");
 
 var compile_unit = DefaultNonTerminal ("compile_unit");
 var compile_unit_item = DefaultNonTerminal ("compile_unit_item");
-var package_decls = DefaultNonTerminal ("package_declarations");
 var package_decl = DefaultNonTerminal ("package_declaration");
 var package_name = DefaultNonTerminal ("package_name");
 var package_contents = DefaultNonTerminal ("package_contents");
@@ -233,13 +240,13 @@ var array_access_expression = DefaultNonTerminal ("array_access_expression");
 var primary_expression = DefaultNonTerminal ("primary_expression");
 var function_call_expression = DefaultNonTerminal ("function_call_expression");
 var member_reference_expression = DefaultNonTerminal ("member_reference_expression");
-var name_reference_expression = DefaultNonTerminal ("name_reference_expression");
 var new_object_expression = DefaultNonTerminal ("new_object_expression");
 var literal_array_expression = DefaultNonTerminal ("literal_array_expression");
 var array_items = DefaultNonTerminal ("array_items");
 var literal_hash_expression = DefaultNonTerminal ("literal_hash_expression");
 var hash_items = DefaultNonTerminal ("hash_items");
 var hash_item = DefaultNonTerminal ("hash_item");
+var identifier_or_literal = DefaultNonTerminal ("identifier_or_literal");
 var as_expression = DefaultNonTerminal ("as_expression");
 var embedded_function_expression = DefaultNonTerminal ("embedded_function_expression");
 var literal = DefaultNonTerminal ("literal");
@@ -471,11 +478,10 @@ lvalue.Rule =
 literal.Rule = numeric_literal | string_literal | char_literal | regex_literal | keyword_null;
 
 member_reference_expression.Rule =
-	name_reference_expression
+	member_reference
 	// This is required for lvalue.
 	| member_reference_expression + "[" + expression + "]";
 
-name_reference_expression.Rule = member_reference;
 function_call_expression.Rule = member_reference_expression + "(" + call_arguments + ")";
 call_arguments.Rule = MakeStarRule (call_arguments, ToTerm (","), call_argument);
 call_argument.Rule = expression;
@@ -491,7 +497,8 @@ literal_array_expression.Rule = ToTerm ("[") + array_items + "]";
 array_items.Rule = MakeStarRule (array_items, ToTerm (","), expression);
 literal_hash_expression.Rule = ToTerm ("{") + hash_items + "}";
 hash_items.Rule = MakeStarRule (hash_items, ToTerm (","), hash_item);
-hash_item.Rule = (identifier | literal) + ":" + expression;
+hash_item.Rule = identifier_or_literal + ":" + expression;
+identifier_or_literal.Rule = identifier | literal;
 embedded_function_expression.Rule = keyword_function + function_nameless;
 
 // this contains both type name (which includes generic) and member reference, but it's easier to treat them as identical.
@@ -528,7 +535,7 @@ Delimiters = "{}[](),:;+-*/%&|^!~<>=";
 RegisterPunctuation (";", ",", "{", "}", "[", "]", ":", ".", "?");
 
 MarkNotReported (keyword_package);
-MarkTransient (compile_unit_item, package_content, namespace_or_class_headless, class_member, property_function, argument_type, statement, statement_lacking_colon, for_statement_remaining, for_iterator, expression, call_argument, lvalue, union_operator, unary_operator);
+MarkTransient (compile_unit_item, package_name, package_content, namespace_or_class_headless, class_member, property_function, argument_type, statement, statement_lacking_colon, for_statement_remaining, for_iterator, expression, call_argument, lvalue, union_operator, unary_operator, identifier_or_literal);
 //MarkTransient (compile_unit_item, package_decl, package_content, class_member, statement, statement_lacking_colon, expression, conditional_expression, iteration_expression, or_expression, and_expression, equality_expression, relational_expression, additive_expression, multiplicative_expression, as_expression, shift_expression, union_expression, unary_expression, new_object_expression, general_function_headless, function_nameless, call_argument);
 
 
@@ -540,7 +547,6 @@ MarkTransient (compile_unit_item, package_content, namespace_or_class_headless, 
 
 		compile_unit.AstNodeCreator = create_ast_compile_unit;
 		package_decl.AstNodeCreator = create_ast_package_decl;
-		package_name.AstNodeCreator = create_ast_select_single_child;
 		package_contents.AstNodeCreator = create_ast_simple_list<IPackageContent>;
 namespace_or_class.AstNodeCreator = create_ast_namespace_or_class;
 namespace_decl.AstNodeCreator = create_ast_namespace_decl;
@@ -613,7 +619,7 @@ iteration_expression.AstNodeCreator = create_ast_iteration_expression;
 array_access_expression.AstNodeCreator = create_ast_array_access_expression;
 literal.AstNodeCreator = create_ast_literal;
 member_reference_expression.AstNodeCreator = create_ast_member_reference_expression;
-name_reference_expression.AstNodeCreator = create_ast_select_single_child;
+member_reference.AstNodeCreator = create_ast_member_reference;
 primary_expression.AstNodeCreator = create_ast_primary_expression;
 function_call_expression.AstNodeCreator = create_ast_function_call_expression;
   call_arguments.AstNodeCreator = create_ast_simple_list<Expression>;

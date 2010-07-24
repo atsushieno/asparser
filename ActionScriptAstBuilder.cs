@@ -128,7 +128,7 @@ namespace FreeActionScript
 		void create_ast_class_decl (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 5);
-			node.AstNode = new ClassDeclaration (node.Get<Identifier> (1), node.Get<TypeName> (2), node.Get<NamespaceUses> (3), node.Get<ClassMembers> (4));
+			node.AstNode = new ClassDeclaration (node.Get<Identifier> (1), node.GetNullable<TypeName> (2), node.Get<NamespaceUses> (3), node.Get<ClassMembers> (4));
 		}
 
 		void create_ast_event_decl (ParsingContext context, ParseTreeNode node) 
@@ -179,7 +179,7 @@ namespace FreeActionScript
 		void create_ast_function_nameless (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 5);
-			node.AstNode = new FunctionDefinition (node.Get<ArgumentDeclarations> (1), node.Get<TypeName> (3), node.Get<BlockStatement> (4));
+			node.AstNode = new FunctionDefinition (node.Get<ArgumentDeclarations> (1), node.GetNullable<TypeName> (3), node.Get<BlockStatement> (4));
 		}
 
 		void create_ast_argument_decl (ParsingContext context, ParseTreeNode node)
@@ -230,7 +230,7 @@ namespace FreeActionScript
 		void create_ast_return_statement (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 1, 2);
-			node.AstNode = new ReturnStatement (node.ChildNodes.Count == 1 ? null : node.Get<Expression> (0));
+			node.AstNode = new ReturnStatement (node.ChildNodes.Count == 1 ? null : node.Get<Expression> (1));
 		}
 
 		void create_ast_block_statement (ParsingContext context, ParseTreeNode node)
@@ -309,7 +309,7 @@ namespace FreeActionScript
 		void create_ast_while_statement (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 5);
-			node.AstNode = new WhileStatement (node.Get<Expression> (1), node.Get<Statement> (3));
+			node.AstNode = new WhileStatement (node.Get<Expression> (2), node.Get<Statement> (4));
 		}
 
 		void create_ast_do_while_statement (ParsingContext context, ParseTreeNode node)
@@ -346,13 +346,13 @@ namespace FreeActionScript
 		void create_ast_throw_statement (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 2);
-			node.AstNode = new ThrowStatement (node.Get<Expression> (0));
+			node.AstNode = new ThrowStatement (node.Get<Expression> (1));
 		}
 
 		void create_ast_try_statement (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 4);
-			node.AstNode = new TryStatement (node.Get<BlockStatement> (1), node.Get<CatchBlocks> (2), node.Get<BlockStatement> (3));
+			node.AstNode = new TryStatement (node.Get<BlockStatement> (1), node.Get<CatchBlocks> (2), node.GetNullable<BlockStatement> (3));
 		}
 
 		void create_ast_catch_block (ParsingContext context, ParseTreeNode node)
@@ -412,11 +412,12 @@ namespace FreeActionScript
 		void create_ast_name_value_pair (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 3);
-			node.AstNode = new NameValuePair (node.Get<Identifier> (0), node.Get<Expression> (2));
+			node.AstNode = new NameValuePair (node.Get<Identifier> (0), node.GetNullable<Expression> (2));
 		}
 
 		void create_ast_assign_statement (ParsingContext context, ParseTreeNode node)
 		{
+			ProcessChildrenCommon (context, node, 1);
 			node.AstNode = new AssignmentExpressionStatement (node.Get<Expression> (0));
 		}
 
@@ -449,7 +450,7 @@ namespace FreeActionScript
 		void create_ast_inc_dec_expression (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 2);
-			if (node.Get<object> (0) is Expression)
+			if (node.GetNullable<object> (0) is Expression)
 				node.AstNode = new IncrementDecrementExpression (node.ChildNodes [1].Term.Name, node.Get<Expression> (0), true);
 			else
 				node.AstNode = new IncrementDecrementExpression (node.ChildNodes [0].Term.Name, node.Get<Expression> (1), false);
@@ -506,9 +507,22 @@ namespace FreeActionScript
 		{
 			ProcessChildrenCommon (context, node, 1, 2);
 			if (node.ChildNodes.Count == 1)
-				node.AstNode = node.Get<Expression> (0);
+				node.AstNode = new MemberReferenceExpression (node.Get<MemberReference> (0));
 			if (node.ChildNodes.Count == 2)
 				node.AstNode = new ArrayAccessExpression (node.Get<Expression> (0), node.Get<Expression> (1));
+		}
+
+		void create_ast_member_reference (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 1, 2, 3, 4);
+			if (node.ChildNodes.Count == 1)
+				node.AstNode = new MemberReference (node.Get<Identifier> (0));
+			else if (node.ChildNodes.Count == 2)
+				node.AstNode = new MemberReference (node.Get<Expression> (0), node.Get<Identifier> (1), MemberAccessType.Instance);
+			else if (node.ChildNodes.Count == 3)
+				node.AstNode = new MemberReference (node.Get<Expression> (0), node.Get<Identifier> (2), MemberAccessType.Static);
+			else
+				node.AstNode = new MemberReference (node.Get<Expression> (0), node.Get<TypeName> (2), MemberAccessType.GenericSubtype);
 		}
 
 		void create_ast_type_name_wild (ParsingContext context, ParseTreeNode node)
@@ -555,7 +569,7 @@ namespace FreeActionScript
 		void create_ast_delete_statement (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 2);
-			node.AstNode = new DeleteStatement (node.Get<Expression> (0));
+			node.AstNode = new DeleteStatement (node.Get<Expression> (1));
 		}
 
 		void create_ast_literal_array_expression (ParsingContext context, ParseTreeNode node)
@@ -1011,6 +1025,12 @@ namespace FreeActionScript
 	{
 		public BinaryExpression (Expression left, Expression right, string oper)
 		{
+			if (oper == null)
+				throw new ArgumentNullException ("oper");
+			if (left == null)
+				throw new ArgumentNullException ("left", String.Format ("Left branch missing on operator {0}", oper));
+			if (right == null)
+				throw new ArgumentNullException ("right", String.Format ("Left branch missing on operator {0}", oper));
 			Left = left;
 			Right = right;
 			Operator = oper;
@@ -1127,16 +1147,6 @@ namespace FreeActionScript
 		public bool IsVarArg { get; private set; }
 	}
 
-	public partial class NameReferenceExpression : Expression, ILeftValue
-	{
-		public NameReferenceExpression (NameReference target)
-		{
-			Target = target;
-		}
-
-		public NameReference Target { get; set; }
-	}
-
 	public enum MemberAccessType
 	{
 		Instance,
@@ -1144,21 +1154,39 @@ namespace FreeActionScript
 		GenericSubtype
 	}
 
-	public partial class NameReference
+	public partial class MemberReferenceExpression : Expression, ILeftValue
 	{
-		public NameReference (Identifier member)
+		public MemberReferenceExpression (MemberReference target)
 		{
+			if (target == null)
+				throw new ArgumentNullException ("target");
+			Target = target;
+		}
+
+		public MemberReference Target { get; set; }
+	}
+
+	public partial class MemberReference
+	{
+		public MemberReference (Identifier member)
+		{
+			if (member == null)
+				throw new ArgumentNullException ("member");
 			Member = member;
 		}
 
-		public NameReference (Expression target, Identifier member, MemberAccessType accessType)
+		public MemberReference (Expression target, Identifier member, MemberAccessType accessType)
 		{
+			if (target == null)
+				throw new ArgumentNullException ("target");
+			if (member == null)
+				throw new ArgumentNullException ("member");
 			Target = target;
 			Member = member;
 			AccessType = accessType;
 		}
 
-		//public NameReference (Expression target, TypeName genericSubtype, MemberAccessType accessType)
+		//public MemberReference (Expression target, TypeName genericSubtype, MemberAccessType accessType)
 		//{
 		//}
 

@@ -226,7 +226,7 @@ namespace FreeActionScript
 
 	public partial class PropertyGetter : GeneralFunction
 	{
-		public void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
+		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
 			// FIXME: implement, merging with setter (needs some class context)
 			base.GenerateCode (ctx, writer);
@@ -235,7 +235,7 @@ namespace FreeActionScript
 
 	public partial class PropertySetter : GeneralFunction
 	{
-		public void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
+		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
 			// FIXME: implement, merging with setter (needs some class context)
 			base.GenerateCode (ctx, writer);
@@ -607,6 +607,7 @@ namespace FreeActionScript
 			foreach (var expr in Arguments) {
 				var tail = Arguments.Last () == expr ? ')' : ',';
 				expr.GenerateCode (ctx, writer);
+				writer.Write (tail);
 			}
 		}
 	}
@@ -621,7 +622,7 @@ namespace FreeActionScript
 		}
 	}
 
-	public partial class NameReferenceExpression : Expression, ILeftValue
+	public partial class MemberReferenceExpression : Expression, ILeftValue
 	{
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
@@ -629,7 +630,7 @@ namespace FreeActionScript
 		}
 	}
 
-	public partial class NameReference
+	public partial class MemberReference
 	{
 		public void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
@@ -655,6 +656,7 @@ namespace FreeActionScript
 			foreach (var expr in Arguments) {
 				var tail = Arguments.Last () == expr ? ')' : ',';
 				expr.GenerateCode (ctx, writer);
+				writer.Write (tail);
 			}
 		}
 	}
@@ -667,6 +669,7 @@ namespace FreeActionScript
 			foreach (var expr in Values) {
 				var tail = Values.Last () == expr ? '}' : ',';
 				expr.GenerateCode (ctx, writer);
+				writer.Write (tail);
 			}
 		}
 	}
@@ -706,6 +709,7 @@ namespace FreeActionScript
 				if (pair.Value != null) {
 					writer.Write (" = ");
 					pair.Value.GenerateCode (ctx, writer);
+					writer.Write (tail);
 				}
 			}
 		}

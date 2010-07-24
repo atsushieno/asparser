@@ -80,16 +80,14 @@ namespace FreeActionScript
 					Console.WriteLine ("{0} {1} {2} {3}", msg.Level, msg.ParserState, msg.Location, msg.Message);
 				if (pt.ParserMessages.Count > 0)
 					break;
-				Console.WriteLine ("done");
 				grammar.CreateAstNode (parser.Context, pt.Root);
 				trees.Add (pt);
 				
 //				break;
+//				new CSharpCodeGenerator ((CompileUnit) pt.Root.AstNode, Console.Out).GenerateCode ();
+
+				Console.WriteLine ("done");
 			}
-#if false
-			foreach (var tree in trees)
-				new CSharpCodeGenerator ((CompileUnit) tree.Root.AstNode, Console.Out).GenerateCode ();
-#endif
 		}
 	}
 }

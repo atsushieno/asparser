@@ -84,7 +84,7 @@ namespace FreeActionScript
 				trees.Add (pt);
 				
 //				break;
-//				new CSharpCodeGenerator ((CompileUnit) pt.Root.AstNode, Console.Out).GenerateCode ();
+				new CSharpCodeGenerator ((CompileUnit) pt.Root.AstNode,TextWriter.Null).GenerateCode ();
 
 				Console.WriteLine ("done");
 			}

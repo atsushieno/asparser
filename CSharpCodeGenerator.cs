@@ -50,6 +50,8 @@ namespace FreeActionScript
 
 	public partial class CodeGenerationContext
 	{
+		public TextWriter CurrentClassWriter { get; set; }
+
 		public string ToCSharpCode (AssignmentOperators oper)
 		{
 			switch (oper) {
@@ -110,6 +112,10 @@ namespace FreeActionScript
 	{
 		public void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
+			var parentClassWriter = ctx.CurrentClassWriter;
+			var sw = new StringWriter ();
+			ctx.CurrentClassWriter = sw;
+
 			writer.WriteLine ("// class {0}", Name);
 			foreach (var ev in Events)
 				ev.GenerateCode (ctx, writer);
@@ -120,8 +126,14 @@ namespace FreeActionScript
 				writer.WriteLine ("using {0};", nsuse.Name);
 			foreach (var item in Members)
 				item.GenerateCode (ctx, writer);
+
+			// output temporarily saved members (such as local functions)
+			writer.Write (sw.ToString ());
+
 			writer.WriteLine ("}");
 			writer.WriteLine ("// end of class {0}", Name);
+
+			ctx.CurrentClassWriter = parentClassWriter;
 		}
 	}
 
@@ -380,15 +392,13 @@ namespace FreeActionScript
 	{
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
-			throw new NotImplementedException ();
-			/*
+			// probably the only difference from for-each is that it can declare local variable.
 			writer.Write ("foreach (");
 			Iterator.GenerateCode (ctx, writer);
 			writer.Write (" in ");
 			Target.GenerateCode (ctx, writer);
 			writer.WriteLine (")");
 			Body.GenerateCode (ctx, writer);
-			*/
 		}
 	}
 
@@ -396,7 +406,12 @@ namespace FreeActionScript
 	{
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
-			throw new NotImplementedException ();
+			writer.Write ("foreach (");
+			Iterator.GenerateCode (ctx, writer);
+			writer.Write (" in ");
+			Target.GenerateCode (ctx, writer);
+			writer.WriteLine (")");
+			Body.GenerateCode (ctx, writer);
 		}
 	}
 
@@ -678,7 +693,16 @@ namespace FreeActionScript
 	{
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
-			throw new NotSupportedException ();
+			writer.Write ("Util.CreateLiteralHash ({");
+			foreach (var pair in Values) {
+				var tail = Values.Last () == pair ? '}' : ',';
+				if (pair.Key is Literal)
+					((Literal) pair.Key).GenerateCode (ctx, writer);
+				writer.Write (", ");
+				pair.Value.GenerateCode (ctx, writer);
+				writer.Write (tail);
+			}
+			writer.Write (')');
 		}
 	}
 
@@ -686,7 +710,12 @@ namespace FreeActionScript
 	{
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
-			throw new NotSupportedException ();
+			if (Function.Name == null) {
+				Function.Name = "__anonymous" + Guid.NewGuid ();
+				Function.GenerateCode (ctx, ctx.CurrentClassWriter);
+			}
+			writer.WriteLine ("/* embedded function {0} is written as a class member.*/", Function.Name);
+			writer.Write (Function.Name);
 		}
 	}
 
@@ -694,7 +723,8 @@ namespace FreeActionScript
 	{
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
-			throw new NotSupportedException ();
+			writer.WriteLine ("// local function {0} is written as a class member.", Function.Name);
+			Function.GenerateCode (ctx, ctx.CurrentClassWriter);
 		}
 	}
 

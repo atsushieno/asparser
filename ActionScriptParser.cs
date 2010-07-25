@@ -168,7 +168,6 @@ var function_nameless = DefaultNonTerminal ("function_nameless");
 var constructor = DefaultNonTerminal ("constructor");
 var argument_decls = DefaultNonTerminal ("argument_declarations");
 var varargs_decl = DefaultNonTerminal ("varargs_decl");
-var named_argument_decls = DefaultNonTerminal ("named_argument_declarations");
 var argument_decl = DefaultNonTerminal ("argument_declaration");
 var argument_type = DefaultNonTerminal ("argument_type");
 var qualified_reference = DefaultNonTerminal ("qualified_reference");
@@ -256,7 +255,7 @@ var literal = DefaultNonTerminal ("literal");
 // non-terminals
 
 compile_unit.Rule = MakeStarRule (compile_unit, null, compile_unit_item);
-compile_unit_item.Rule = package_decl | import | class_decl;
+compile_unit_item.Rule = package_decl | import | namespace_or_class;
 package_decl.Rule = keyword_package + package_name + "{" + package_contents + "}";
 package_name.Rule = qualified_reference;
 package_contents.Rule = MakeStarRule (package_contents, null, package_content);
@@ -296,7 +295,7 @@ general_function.Rule = member_header + general_function_headless;
 general_function_headless.Rule = keyword_function + identifier + function_nameless;
 function_nameless.Rule = "(" + argument_decls + ")" + (Empty | ":" + type_name_wild) + block_statement;
 constructor.Rule = keyword_function + identifier + "(" + argument_decls + ")" + block_statement;
-argument_decls.Rule = MakeStarRule (named_argument_decls, ToTerm (","), argument_decl);
+argument_decls.Rule = MakeStarRule (argument_decls, ToTerm (","), argument_decl);
 argument_decl.Rule = // FIXME: there is an ambiguation issue; on foo.<bar>=baz ">=" conflicts with comparison operator.
 	identifier + ":" + argument_type + assignment_opt
 	| varargs_decl
@@ -558,7 +557,7 @@ class_decl.AstNodeCreator = create_ast_class_decl;
 event_decl.AstNodeCreator = create_ast_event_decl;
   event_decl_members.AstNodeCreator = create_ast_simple_list<NameValuePair>;
 event_decl_member.AstNodeCreator = create_ast_event_decl_member;
-access_modifier.AstNodeCreator = create_ast_select_single_child;
+access_modifier.AstNodeCreator = create_ast_access_modifier;
   class_members.AstNodeCreator = create_ast_simple_list<IClassMember>;
 member_header.AstNodeCreator = create_ast_simple_list<MemberHeader>;
 constant_declaration.AstNodeCreator = create_ast_constant_declaration;

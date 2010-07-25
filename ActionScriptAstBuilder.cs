@@ -61,8 +61,7 @@ namespace FreeActionScript
 
 		void create_ast_simple_list<T> (ParsingContext ctx, ParseTreeNode node)
 		{
-			foreach (var cn in node.ChildNodes)
-				cn.Term.CreateAstNode (ctx, cn);
+			ProcessChildrenCommon (ctx, node);
 			if (node.ChildNodes.Count == 0)
 				node.AstNode = new List<T> ();
 			else {
@@ -73,8 +72,11 @@ namespace FreeActionScript
 					list.Add ((T) l.AstNode);
 				}
 				foreach (var cn in node.ChildNodes)
-					if (cn.AstNode != list)
-						list.Add ((T) cn.AstNode);
+					if (cn.AstNode != list) {
+						if (cn.AstNode is T)
+							list.Add ((T) cn.AstNode);
+						else throw new Exception (String.Format ("On node {2}, child AstNode is {0}, not {1}", cn.AstNode, typeof (T), node.Term.Name));
+					}
 				node.AstNode = list;
 			}
 		}
@@ -96,6 +98,12 @@ namespace FreeActionScript
 		{
 			ProcessChildrenCommon (context, node, 3);
 			node.AstNode = new PackageDeclaration (node.Get<string> (1), node.Get<PackageContents> (2));
+		}
+
+		void create_ast_access_modifier (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 1);
+			node.AstNode = node.ChildNodes [0].Term.Name;
 		}
 
 		void create_ast_namespace_or_class (ParsingContext context, ParseTreeNode node)
@@ -192,7 +200,7 @@ namespace FreeActionScript
 			else if (node.ChildNodes.Count == 2)
 				node.AstNode = new ArgumentDeclaration (node.Get<Identifier> (0), node.Get<TypeName> (1), null);
 			else if (node.ChildNodes.Count == 3)
-				node.AstNode = new ArgumentDeclaration (node.Get<Identifier> (0), node.Get<TypeName> (1), node.Get<Expression> (2));
+				node.AstNode = new ArgumentDeclaration (node.Get<Identifier> (0), node.Get<TypeName> (1), node.GetNullable<Expression> (2));
 		}
 
 		void create_ast_varargs_decl (ParsingContext context, ParseTreeNode node)
@@ -763,6 +771,10 @@ namespace FreeActionScript
 	{
 		public FunctionDefinition (ArgumentDeclarations args, TypeName returnType, BlockStatement body)
 		{
+			if (args == null)
+				throw new ArgumentNullException ("args");
+			if (body == null)
+				throw new ArgumentNullException ("body");
 			Arguments = args;
 			ReturnTypeName = returnType;
 			Body = body;
@@ -1221,32 +1233,48 @@ namespace FreeActionScript
 	{
 		public LiteralHashExpression (HashItems values)
 		{
+			Values = values;
 		}
+		
+		public HashItems Values { get; set; }
 	}
 
 	public partial class HashItem
 	{
 		public HashItem (Identifier key, Expression value)
 		{
+			Key = key;
+			Value = value;
 		}
 
 		public HashItem (Literal key, Expression value)
 		{
+			Key = key;
+			Value = value;
 		}
+		
+		public object Key { get; set; }
+		public Expression Value { get; set; }
 	}
 
 	public partial class EmbeddedFunctionExpression : Expression
 	{
 		public EmbeddedFunctionExpression (FunctionDefinition func)
 		{
+			Function = func;
 		}
+		
+		public FunctionDefinition Function { get; set; }
 	}
 
 	public partial class LocalFunctionStatement : Statement
 	{
 		public LocalFunctionStatement (FunctionDefinition func)
 		{
+			Function = func;
 		}
+		
+		public FunctionDefinition Function { get; set; }
 	}
 
 	public enum Operators
@@ -1346,9 +1374,16 @@ namespace FreeActionScript
 	
 	public partial class ForEachStatement : Statement
 	{
-		public ForEachStatement (ForEachIterator iter, Expression targetExpr, Statement stmt)
+		public ForEachStatement (ForEachIterator iter, Expression target, Statement body)
 		{
+			Iterator = iter;
+			Target = target;
+			Body = body;
 		}
+		
+		public ForEachIterator Iterator { get; set; }
+		public Expression Target { get; set; }
+		public Statement Body { get; set; }
 	}
 
 	public partial class ThrowStatement : Statement

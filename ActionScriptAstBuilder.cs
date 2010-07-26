@@ -21,7 +21,7 @@ using ForIterators = System.Collections.Generic.List<FreeActionScript.IForIterat
 using ForAssignStatements = System.Collections.Generic.List<FreeActionScript.AssignmentExpressionStatement>;
 using CatchBlocks = System.Collections.Generic.List<FreeActionScript.CatchBlock>;
 using ArgumentDeclarations = System.Collections.Generic.List<FreeActionScript.ArgumentDeclaration>;
-using NameValuePairs = System.Collections.Generic.List<FreeActionScript.NameValuePair>;
+using NameTypeValues = System.Collections.Generic.List<FreeActionScript.NameTypeValue>;
 using Expressions = System.Collections.Generic.List<FreeActionScript.Expression>;
 using HashItems = System.Collections.Generic.List<FreeActionScript.HashItem>;
 
@@ -67,10 +67,8 @@ namespace FreeActionScript
 			else {
 				var l = node.ChildNodes [0];
 				var list = l.AstNode as List<T>;
-				if (list == null) {
+				if (list == null)
 					list = new List<T> ();
-					list.Add ((T) l.AstNode);
-				}
 				foreach (var cn in node.ChildNodes)
 					if (cn.AstNode != list) {
 						if (cn.AstNode is T)
@@ -142,25 +140,25 @@ namespace FreeActionScript
 		void create_ast_event_decl (ParsingContext context, ParseTreeNode node) 
 		{
 			ProcessChildrenCommon (context, node, 4);
-			node.AstNode = new EventDeclaration (node.Get<TypeName> (0), node.Get<NameValuePairs> (2));
+			node.AstNode = new EventDeclaration (node.Get<TypeName> (0), node.Get<NameTypeValues> (2));
 		}
 
 		void create_ast_event_decl_member (ParsingContext context, ParseTreeNode node) 
 		{
 			ProcessChildrenCommon (context, node, 3);
-			node.AstNode = new NameValuePair (node.Get<Identifier> (0), node.Get<Literal> (2));
+			node.AstNode = new NameTypeValue (node.Get<Identifier> (0), null, node.Get<Literal> (2));
 		}
 
 		void create_ast_field_declaration (ParsingContext context, ParseTreeNode node) 
 		{
 			ProcessChildrenCommon (context, node, 4);
-			node.AstNode = new FieldDeclaration (node.Get<MemberHeaders> (0), node.Get<NameValuePairs> (2));
+			node.AstNode = new FieldDeclaration (node.Get<MemberHeaders> (0), node.Get<NameTypeValues> (2));
 		}
 
 		void create_ast_constant_declaration (ParsingContext context, ParseTreeNode node) 
 		{
 			ProcessChildrenCommon (context, node, 4);
-			node.AstNode = new ConstantDeclaration (node.Get<MemberHeaders> (0), node.Get<NameValuePairs> (2));
+			node.AstNode = new ConstantDeclaration (node.Get<MemberHeaders> (0), node.Get<NameTypeValues> (2));
 		}
 
 		void create_ast_constructor (ParsingContext context, ParseTreeNode node) 
@@ -186,8 +184,11 @@ namespace FreeActionScript
 
 		void create_ast_function_nameless (ParsingContext context, ParseTreeNode node)
 		{
-			ProcessChildrenCommon (context, node, 5);
-			node.AstNode = new FunctionDefinition (node.Get<ArgumentDeclarations> (1), node.GetNullable<TypeName> (3), node.Get<BlockStatement> (4));
+			ProcessChildrenCommon (context, node, 4, 5);
+			if (node.ChildNodes.Count == 4)
+				node.AstNode = new FunctionDefinition (node.Get<ArgumentDeclarations> (1), null, node.Get<BlockStatement> (3));
+			else
+				node.AstNode = new FunctionDefinition (node.Get<ArgumentDeclarations> (1), node.GetNullable<TypeName> (3), node.Get<BlockStatement> (4));
 		}
 
 		void create_ast_argument_decl (ParsingContext context, ParseTreeNode node)
@@ -249,10 +250,10 @@ namespace FreeActionScript
 
 		void create_ast_if_statement (ParsingContext context, ParseTreeNode node)
 		{
-			ProcessChildrenCommon (context, node, 6, 7);
+			ProcessChildrenCommon (context, node, 6);
 			var cond = node.Get<Expression> (2);
 			var t = node.Get<Statement> (4);
-			var f = node.ChildNodes.Count == 7 ? node.Get<Statement> (6) : null;
+			var f = node.GetNullable<Statement> (5);
 			node.AstNode = new IfStatement (cond, t, f);
 		}
 
@@ -384,7 +385,7 @@ namespace FreeActionScript
 		void create_ast_local_var_decl_statement (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 2);
-			node.AstNode = new LocalVariableDeclarationStatement (node.Get<NameValuePairs> (1));
+			node.AstNode = new LocalVariableDeclarationStatement (node.Get<NameTypeValues> (1));
 		}
 
 		void create_ast_expression_statement (ParsingContext context, ParseTreeNode node)
@@ -417,10 +418,10 @@ namespace FreeActionScript
 			node.AstNode = new FunctionCallExpression (node.Get<Expression> (0), node.Get<FunctionCallArguments> (2));
 		}
 
-		void create_ast_name_value_pair (ParsingContext context, ParseTreeNode node)
+		void create_ast_name_type_value (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 3);
-			node.AstNode = new NameValuePair (node.Get<Identifier> (0), node.GetNullable<Expression> (2));
+			node.AstNode = new NameTypeValue (node.Get<Identifier> (0), node.GetNullable<TypeName> (1), node.GetNullable<Expression> (2));
 		}
 
 		void create_ast_assign_statement (ParsingContext context, ParseTreeNode node)
@@ -637,14 +638,14 @@ namespace FreeActionScript
 
 	public partial class EventDeclaration
 	{
-		public EventDeclaration (TypeName name, NameValuePairs members)
+		public EventDeclaration (TypeName name, NameTypeValues members)
 		{
 			Name = name;
 			Members = members;
 		}
 
 		public TypeName Name { get; set; }
-		public NameValuePairs Members { get; set; }
+		public NameTypeValues Members { get; set; }
 	}
 	
 	/*
@@ -731,18 +732,18 @@ namespace FreeActionScript
 
 	public partial class FieldDeclaration : ClassMemberBase
 	{
-		public FieldDeclaration (MemberHeaders headers, NameValuePairs nameValuePairs)
+		public FieldDeclaration (MemberHeaders headers, NameTypeValues nameValuePairs)
 			: base (headers)
 		{
-			NameValuePairs = nameValuePairs;
+			NameTypeValues = nameValuePairs;
 		}
 
-		public NameValuePairs NameValuePairs { get; set; }
+		public NameTypeValues NameTypeValues { get; set; }
 	}
 
 	public partial class ConstantDeclaration : FieldDeclaration
 	{
-		public ConstantDeclaration (MemberHeaders headers, NameValuePairs nameValuePairs)
+		public ConstantDeclaration (MemberHeaders headers, NameTypeValues nameValuePairs)
 			: base (headers, nameValuePairs)
 		{
 		}
@@ -1322,26 +1323,28 @@ namespace FreeActionScript
 		public TypeName Type { get; set; }
 	}
 
-	public partial class NameValuePair
+	public partial class NameTypeValue
 	{
-		public NameValuePair (Identifier name, Expression value)
+		public NameTypeValue (Identifier name, TypeName type, Expression value)
 		{
 			Name = name;
+			Type = type;
 			Value = value;
 		}
 		
 		public Identifier Name { get; set; }
+		public TypeName Type { get; set; }
 		public Expression Value { get; set; }
 	}
 
 	public partial class LocalVariableDeclarationStatement : Statement
 	{
-		public LocalVariableDeclarationStatement (NameValuePairs nameValuePairs)
+		public LocalVariableDeclarationStatement (NameTypeValues nameValuePairs)
 		{
 			Pairs = nameValuePairs;
 		}
 		
-		NameValuePairs Pairs { get; set; }
+		NameTypeValues Pairs { get; set; }
 	}
 
 	public partial class PropertyGetter : GeneralFunction

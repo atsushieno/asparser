@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -34,7 +35,7 @@ namespace FreeActionScript
 		{
 			var x = node.ChildNodes [index].AstNode;
 			if (x == null)
-				throw new InvalidOperationException (String.Format ("Node {0} child {1} has null AstNode", node.Term.Name, index));
+				throw new InvalidOperationException (String.Format ("Node {0} child {1} has null AstNode ({2})", node.Term.Name, index, node.Span.Location));
 			return (T) x;
 		}
 
@@ -100,6 +101,7 @@ KeyTerm keyword_namespace = Keyword ("namespace");
 KeyTerm keyword_class = Keyword ("class");
 KeyTerm keyword_extends = Keyword ("extends");
 KeyTerm keyword_public = Keyword ("public");
+KeyTerm keyword_protected = Keyword ("protected");
 KeyTerm keyword_internal = Keyword ("internal");
 KeyTerm keyword_private = Keyword ("private");
 KeyTerm keyword_static = Keyword ("static");
@@ -189,8 +191,8 @@ var call_arguments = DefaultNonTerminal ("call_arguments");
 var call_argument = DefaultNonTerminal ("call_argument");
 var delete_statement = DefaultNonTerminal ("delete_statement");
 var local_var_decl_statement = DefaultNonTerminal ("local_var_decl_statement");
-var name_value_pairs = DefaultNonTerminal ("name_value_pairs");
-var name_value_pair = DefaultNonTerminal ("name_value_pair");
+var name_type_values = DefaultNonTerminal ("name_type_values");
+var name_type_value = DefaultNonTerminal ("name_type_value");
 var if_statement = DefaultNonTerminal ("if_statement");
 var else_block = DefaultNonTerminal ("else_block");
 var switch_statement = DefaultNonTerminal ("switch_statement");
@@ -276,15 +278,15 @@ event_decl_members.Rule = MakeStarRule (event_decl_members, ToTerm (","), event_
 event_decl_member.Rule = identifier + "=" + literal;
 
 // class member
-access_modifier.Rule = keyword_public | keyword_internal | keyword_private | identifier | keyword_static | keyword_dynamic | keyword_override;
+access_modifier.Rule = keyword_public | keyword_protected | keyword_internal | keyword_private | identifier | keyword_static | keyword_dynamic | keyword_override;
 class_members.Rule = MakeStarRule (class_members, null, class_member);
 class_member.Rule = constant_declaration | field_declaration | property_function | general_function | constructor ;
 
 member_header.Rule = MakeStarRule (member_header, null, access_modifier);
 
 // field and constant
-constant_declaration.Rule = member_header + keyword_const + name_value_pairs + semi_opt;
-field_declaration.Rule = member_header + keyword_var + name_value_pairs + semi_opt;
+constant_declaration.Rule = member_header + keyword_const + name_type_values + semi_opt;
+field_declaration.Rule = member_header + keyword_var + name_type_values + semi_opt;
 assignment_opt.Rule = Empty | "=" + expression;
 
 // functions
@@ -293,7 +295,9 @@ property_getter.Rule = member_header + keyword_function + keyword_get + identifi
 property_setter.Rule = member_header + keyword_function + keyword_set + identifier + "(" + identifier + ":" + type_name + ")" + ":" + "void" + block_statement;
 general_function.Rule = member_header + general_function_headless;
 general_function_headless.Rule = keyword_function + identifier + function_nameless;
-function_nameless.Rule = "(" + argument_decls + ")" + (Empty | ":" + type_name_wild) + block_statement;
+function_nameless.Rule =
+	"(" + argument_decls + ")" + block_statement
+	| "(" + argument_decls + ")" + ":" + type_name_wild + block_statement;
 constructor.Rule = keyword_function + identifier + "(" + argument_decls + ")" + block_statement;
 argument_decls.Rule = MakeStarRule (argument_decls, ToTerm (","), argument_decl);
 argument_decl.Rule = // FIXME: there is an ambiguation issue; on foo.<bar>=baz ">=" conflicts with comparison operator.
@@ -383,9 +387,9 @@ catch_block.Rule = keyword_catch + exception_type_part + block_statement;
 exception_type_part.Rule = Empty | ToTerm ("(") + identifier + ":" + type_name + ")";
 finally_block.Rule = Empty | keyword_finally + block_statement;
 block_statement.Rule = ToTerm ("{") + statements + "}";
-local_var_decl_statement.Rule = keyword_var + name_value_pairs;
-name_value_pairs.Rule = MakePlusRule (name_value_pairs, ToTerm (","), name_value_pair);
-name_value_pair.Rule = identifier + ":" + argument_type + assignment_opt;
+local_var_decl_statement.Rule = keyword_var + name_type_values;
+name_type_values.Rule = MakePlusRule (name_type_values, ToTerm (","), name_type_value);
+name_type_value.Rule = identifier + ":" + argument_type + assignment_opt;
 delete_statement.Rule = keyword_delete + expression;
 
 
@@ -541,7 +545,28 @@ MarkTransient (compile_unit_item, package_name, package_content, namespace_or_cl
 		identifier.AstNodeCreator = delegate (ParsingContext ctx, ParseTreeNode node) { node.AstNode = node.FindTokenAndGetText (); };
 		string_literal.AstNodeCreator = delegate (ParsingContext ctx, ParseTreeNode node) { node.AstNode = node.FindTokenAndGetText (); };
 		char_literal.AstNodeCreator = delegate (ParsingContext ctx, ParseTreeNode node) { node.AstNode = node.FindTokenAndGetText (); };
-		numeric_literal.AstNodeCreator = delegate (ParsingContext ctx, ParseTreeNode node) { node.AstNode = node.FindTokenAndGetText (); };
+		numeric_literal.AstNodeCreator = delegate (ParsingContext ctx, ParseTreeNode node) {
+			var s = node.FindTokenAndGetText ();
+			long l;
+			ulong ul;
+			double d;
+			decimal dec;
+			NumberStyles ns = NumberStyles.None;
+			if (s.StartsWith ("0x")) {
+				ns = NumberStyles.HexNumber;
+				s = s.Substring (2);
+			}
+			if (long.TryParse (s, ns, null, out l))
+				node.AstNode = l;
+			else if (ulong.TryParse (s, ns, null, out ul))
+				node.AstNode = l;
+			else if (double.TryParse (s, out d))
+				node.AstNode = d;
+			else if (decimal.TryParse (s, out dec))
+				node.AstNode = dec;
+			else
+				throw new NotImplementedException ("Not supported number value: " + s);
+			};
 		regex_literal.AstNodeCreator = delegate (ParsingContext ctx, ParseTreeNode node) { node.AstNode = node.FindTokenAndGetText (); };
 
 		compile_unit.AstNodeCreator = create_ast_compile_unit;
@@ -555,7 +580,7 @@ namespace_use.AstNodeCreator = create_ast_namespace_use;
 class_decl.AstNodeCreator = create_ast_class_decl;
   event_decls.AstNodeCreator = create_ast_simple_list<EventDeclaration>;
 event_decl.AstNodeCreator = create_ast_event_decl;
-  event_decl_members.AstNodeCreator = create_ast_simple_list<NameValuePair>;
+  event_decl_members.AstNodeCreator = create_ast_simple_list<NameTypeValue>;
 event_decl_member.AstNodeCreator = create_ast_event_decl_member;
 access_modifier.AstNodeCreator = create_ast_access_modifier;
   class_members.AstNodeCreator = create_ast_simple_list<IClassMember>;
@@ -606,8 +631,8 @@ exception_type_part.AstNodeCreator = create_ast_exception_type_part;
 finally_block.AstNodeCreator = create_ast_finally_block;
 block_statement.AstNodeCreator = create_ast_block_statement;
 local_var_decl_statement.AstNodeCreator = create_ast_local_var_decl_statement;
-  name_value_pairs.AstNodeCreator = create_ast_simple_list<NameValuePair>;
-name_value_pair.AstNodeCreator = create_ast_name_value_pair;
+  name_type_values.AstNodeCreator = create_ast_simple_list<NameTypeValue>;
+name_type_value.AstNodeCreator = create_ast_name_type_value;
 delete_statement.AstNodeCreator = create_ast_delete_statement;
 assignment_expression.AstNodeCreator = create_ast_assignment_expression;
 conditional_expression.AstNodeCreator = create_ast_conditional_expression;

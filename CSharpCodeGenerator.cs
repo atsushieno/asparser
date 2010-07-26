@@ -23,7 +23,7 @@ using ForIterators = System.Collections.Generic.List<FreeActionScript.IForIterat
 using ForAssignStatements = System.Collections.Generic.List<FreeActionScript.AssignmentExpressionStatement>;
 using CatchBlocks = System.Collections.Generic.List<FreeActionScript.CatchBlock>;
 using ArgumentDeclarations = System.Collections.Generic.List<FreeActionScript.ArgumentDeclaration>;
-using NameValuePairs = System.Collections.Generic.List<FreeActionScript.NameValuePair>;
+using NameTypeValues = System.Collections.Generic.List<FreeActionScript.NameTypeValue>;
 using Expressions = System.Collections.Generic.List<FreeActionScript.Expression>;
 using HashItems = System.Collections.Generic.List<FreeActionScript.HashItem>;
 
@@ -51,6 +51,15 @@ namespace FreeActionScript
 	public partial class CodeGenerationContext
 	{
 		public TextWriter CurrentClassWriter { get; set; }
+		public PropertySetter CurrentPropertySetter { get; set; }
+
+		public Identifier GetActualName (Identifier name)
+		{
+			if (CurrentPropertySetter != null && CurrentPropertySetter.Definition.Name == name)
+				return "value";
+			else
+				return name;
+		}
 
 		public string ToCSharpCode (AssignmentOperators oper)
 		{
@@ -120,7 +129,7 @@ namespace FreeActionScript
 			foreach (var ev in Events)
 				ev.GenerateCode (ctx, writer);
 			ctx.WriteHeaders (Headers, writer);
-			writer.WriteLine ("{0}{1}{2}", Name, BaseClassName != null ? " : " : null, BaseClassName);
+			writer.WriteLine ("class {0}{1}{2}", Name, BaseClassName != null ? " : " : null, BaseClassName);
 			writer.WriteLine ("{");
 			foreach (var nsuse in NamespaceUses)
 				writer.WriteLine ("using {0};", nsuse.Name);
@@ -145,13 +154,13 @@ namespace FreeActionScript
 			writer.Write (Name);
 			writer.Write ("(");
 			foreach (var member in Members) {
-				var tail = Members.Last () == member ? ')' : ',';
+				var tail = Members.Last () == member ? "" : ", ";
 				writer.Write (member.Name);
 				writer.Write (" = ");
 				writer.Write (member.Value);
 				writer.Write (tail);
 			}
-			writer.WriteLine ("]");
+			writer.WriteLine (")]");
 		}
 	}
 
@@ -189,15 +198,19 @@ namespace FreeActionScript
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
 			ctx.WriteHeaders (Headers, writer);
-			writer.Write ("dynamic ");
-			foreach (var pair in NameValuePairs) {
-				var tail = NameValuePairs.Last () == pair ? ';' : ',';
-				writer.Write (pair.Name);
-				if (pair.Value != null) {
+			foreach (var ntv in NameTypeValues) {
+				// because AS3 variable types could differ within a line (unlike C#), they have to be declared in split form (or I have to do something more complicated.)
+				if (ntv.Type != null)
+					writer.Write (ntv.Type);
+				else
+					writer.Write ("dynamic");
+				writer.Write (' ');
+				writer.Write (ntv.Name);
+				if (ntv.Value != null) {
 					writer.Write (" = ");
-					pair.Value.GenerateCode (ctx, writer);
-					writer.Write (tail);
+					ntv.Value.GenerateCode (ctx, writer);
 				}
+				writer.WriteLine (';');
 			}
 		}
 	}
@@ -206,8 +219,14 @@ namespace FreeActionScript
 	{
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
+			OnGenerateCode (ctx, writer, false, null);
+		}
+
+		internal void OnGenerateCode (CodeGenerationContext ctx, TextWriter writer, bool returnVoid, string namePrefix)
+		{
 			ctx.WriteHeaders (Headers, writer);
-			Definition.GenerateCode (ctx, writer);
+			Definition.OnGenerateCode (ctx, writer, returnVoid, namePrefix);
+			writer.WriteLine ();
 		}
 	}
 
@@ -215,12 +234,21 @@ namespace FreeActionScript
 	{
 		public void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
-			writer.Write (ReturnTypeName);
+			OnGenerateCode (ctx, writer, false, null);
+		}
+		
+		internal void OnGenerateCode (CodeGenerationContext ctx, TextWriter writer, bool returnVoid, string namePrefix)
+		{
+			if (returnVoid)
+				writer.Write ("void");
+			else
+				writer.Write (ReturnTypeName);
 			writer.Write (' ');
+			writer.Write (namePrefix);
 			writer.Write (Name);
 			writer.Write (" (");
 			foreach (var arg in Arguments) {
-				var tail = Arguments.Last () == arg ? ')' : ',';
+				var tail = Arguments.Last () == arg ? "" : ", ";
 				if (arg.IsVarArg)
 					writer.Write ("params object [] {0}", arg.Name);
 				else {
@@ -232,6 +260,7 @@ namespace FreeActionScript
 				}
 				writer.Write (tail);
 			}
+			writer.WriteLine (')');
 			Body.GenerateCode (ctx, writer);
 		}
 	}
@@ -241,7 +270,7 @@ namespace FreeActionScript
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
 			// FIXME: implement, merging with setter (needs some class context)
-			base.GenerateCode (ctx, writer);
+			base.OnGenerateCode (ctx, writer, false, "get_");
 		}
 	}
 
@@ -250,7 +279,17 @@ namespace FreeActionScript
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
 			// FIXME: implement, merging with setter (needs some class context)
-			base.GenerateCode (ctx, writer);
+
+			// Property syntax in AS3 is weird. 
+			// Parameter name doesn't make any sense.
+			// The property name is used like "value" in C#.
+			// Hence, we have to save current property setter
+			// and when resolving name reference we have to
+			// "rename" it.
+			var curProp = ctx.CurrentPropertySetter;
+			ctx.CurrentPropertySetter = this;
+			base.OnGenerateCode (ctx, writer, true, "set_");
+			ctx.CurrentPropertySetter = curProp;
 		}
 	}
 
@@ -290,6 +329,7 @@ namespace FreeActionScript
 				Value.GenerateCode (ctx, writer);
 				writer.Write (';');
 			}
+			writer.WriteLine ();
 		}
 	}
 
@@ -302,7 +342,7 @@ namespace FreeActionScript
 			writer.WriteLine (")");
 			TrueStatement.GenerateCode (ctx, writer);
 			if (FalseStatement != null) {
-				writer.WriteLine (" else ");
+				writer.WriteLine ("else");
 				FalseStatement.GenerateCode (ctx, writer);
 			}
 		}
@@ -369,15 +409,15 @@ namespace FreeActionScript
 		{
 			writer.Write ("for (");
 			Initializers.GenerateCode (ctx, writer);
-			writer.Write ("; ");
+			// writer.Write ("; "); // no need for that; initializers are written as a statement.
 			Condition.GenerateCode (ctx, writer);
 			writer.Write ("; ");
 			foreach (var iter in Iterators) {
-				var tail = Iterators.Last () == iter ? ')' : ',';
+				var tail = Iterators.Last () == iter ? "" : ", ";
 				iter.GenerateCode (ctx, writer);
 				writer.Write (tail);
 			}
-			writer.WriteLine ();
+			writer.WriteLine (')');
 			Body.GenerateCode (ctx, writer);
 		}
 	}
@@ -423,7 +463,7 @@ namespace FreeActionScript
 				LocalVariables.GenerateCode (ctx, writer);
 			else {
 				foreach (var axs in AssignStatements) {
-					var tail = AssignStatements.Last () == axs ? "" : ",";
+					var tail = AssignStatements.Last () == axs ? "" : ", ";
 					axs.GenerateCode (ctx, writer);
 					writer.Write (tail);
 				}
@@ -620,10 +660,11 @@ namespace FreeActionScript
 			Target.GenerateCode (ctx, writer);
 			writer.Write ('(');
 			foreach (var expr in Arguments) {
-				var tail = Arguments.Last () == expr ? ')' : ',';
+				var tail = Arguments.Last () == expr ? "" : ", ";
 				expr.GenerateCode (ctx, writer);
 				writer.Write (tail);
 			}
+			writer.Write (')');
 		}
 	}
 
@@ -657,7 +698,7 @@ namespace FreeActionScript
 					writer.Write ("." + Member);
 			}
 			else
-				writer.Write (Member);
+				writer.Write (ctx.GetActualName (Member));
 		}
 	}
 
@@ -669,10 +710,11 @@ namespace FreeActionScript
 			writer.Write (Name);
 			writer.Write ('(');
 			foreach (var expr in Arguments) {
-				var tail = Arguments.Last () == expr ? ')' : ',';
+				var tail = Arguments.Last () == expr ? "" : ", ";
 				expr.GenerateCode (ctx, writer);
 				writer.Write (tail);
 			}
+			writer.Write (')');
 		}
 	}
 
@@ -682,10 +724,11 @@ namespace FreeActionScript
 		{
 			writer.Write ("new object [] {");
 			foreach (var expr in Values) {
-				var tail = Values.Last () == expr ? '}' : ',';
+				var tail = Values.Last () == expr ? "" : ", ";
 				expr.GenerateCode (ctx, writer);
 				writer.Write (tail);
 			}
+			writer.Write ('}');
 		}
 	}
 
@@ -695,14 +738,14 @@ namespace FreeActionScript
 		{
 			writer.Write ("Util.CreateLiteralHash ({");
 			foreach (var pair in Values) {
-				var tail = Values.Last () == pair ? '}' : ',';
+				var tail = Values.Last () == pair ? "" : ", ";
 				if (pair.Key is Literal)
 					((Literal) pair.Key).GenerateCode (ctx, writer);
 				writer.Write (", ");
 				pair.Value.GenerateCode (ctx, writer);
 				writer.Write (tail);
 			}
-			writer.Write (')');
+			writer.Write ("})");
 		}
 	}
 
@@ -734,14 +777,15 @@ namespace FreeActionScript
 		{
 			writer.Write ("var ");
 			foreach (var pair in Pairs) {
-				var tail = Pairs.Last () == pair ? ';' : ',';
+				var tail = Pairs.Last () == pair ? "" : ", ";
 				writer.Write (pair.Name);
 				if (pair.Value != null) {
 					writer.Write (" = ");
 					pair.Value.GenerateCode (ctx, writer);
-					writer.Write (tail);
 				}
+				writer.Write (tail);
 			}
+			writer.WriteLine (';');
 		}
 	}
 
@@ -788,7 +832,7 @@ namespace FreeActionScript
 				writer.Write ("\"" + Value + "\"");
 			else if (Value is char)
 				writer.Write ("\'" + Value + "\'");
-			else if (Value is int || Value is double)
+			else if (Value is long || Value is ulong || Value is double || Value is decimal)
 				writer.Write (Value.ToString ());
 			else
 				throw new NotImplementedException ();

@@ -83,9 +83,9 @@ namespace FreeActionScript
 				grammar.CreateAstNode (parser.Context, pt.Root);
 				trees.Add (pt);
 				
-//				break;
 				new CSharpCodeGenerator ((CompileUnit) pt.Root.AstNode,TextWriter.Null).GenerateCode ();
 
+//				break;
 				Console.WriteLine ("done");
 			}
 		}

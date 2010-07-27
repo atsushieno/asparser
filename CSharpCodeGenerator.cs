@@ -110,6 +110,9 @@ namespace FreeActionScript
 				case "Identifier": // first of all, the actual string value should be the label. Though, C# doesn't support namespace-specific name scope. So we write "public" for this instead.
 					writer.Write ("public/*it is originally namespace-scoped*/ ");
 					break;
+				case "final":
+					writer.Write ("sealed ");
+					break;
 				case "dynamic": // it is not supported in C# as an access modifier
 					continue;
 				default:
@@ -626,6 +629,8 @@ namespace FreeActionScript
 			Left.GenerateCode (ctx, writer);
 			writer.Write (' ');
 			switch (Operator) {
+			case ">>>": writer.Write (">> /* >>> */"); break;
+			case "<<<": writer.Write ("<< /* <<< */"); break;
 			case "===": writer.Write ("== /* === */"); break;
 			case "!==": writer.Write ("!= /* === */"); break;
 			default: writer.Write (Operator); break;
@@ -785,6 +790,8 @@ namespace FreeActionScript
 				var tail = Values.Last () == pair ? "" : ", ";
 				if (pair.Key is Literal)
 					((Literal) pair.Key).GenerateCode (ctx, writer);
+				else
+					writer.Write (ctx.SafeName ((Identifier) pair.Key));
 				writer.Write (", ");
 				pair.Value.GenerateCode (ctx, writer);
 				writer.Write (tail);

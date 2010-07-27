@@ -105,6 +105,7 @@ KeyTerm keyword_internal = Keyword ("internal");
 KeyTerm keyword_private = Keyword ("private");
 KeyTerm keyword_static = Keyword ("static");
 KeyTerm keyword_dynamic = Keyword ("dynamic");
+KeyTerm keyword_final = Keyword ("final");
 KeyTerm keyword_override = Keyword ("override");
 KeyTerm keyword_const = Keyword ("const");
 KeyTerm keyword_var = Keyword ("var");
@@ -277,7 +278,7 @@ event_decl_members.Rule = MakeStarRule (event_decl_members, ToTerm (","), event_
 event_decl_member.Rule = identifier + "=" + literal;
 
 // class member
-access_modifier.Rule = keyword_public | keyword_protected | keyword_internal | keyword_private | identifier | keyword_static | keyword_dynamic | keyword_override;
+access_modifier.Rule = keyword_public | keyword_protected | keyword_internal | keyword_private | identifier | keyword_static | keyword_dynamic | keyword_final | keyword_override;
 class_members.Rule = MakeStarRule (class_members, null, class_member);
 class_member.Rule = constant_declaration | field_declaration | property_function | general_function | constructor ;
 

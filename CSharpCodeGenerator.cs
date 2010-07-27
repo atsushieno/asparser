@@ -69,9 +69,12 @@ namespace FreeActionScript
 
 		public Identifier SafeName (Identifier name)
 		{
+			// FIXME: cover all C# keywords.
 			switch (name) {
 			case "int":
 				return "@int";
+			case "event":
+				return "@event";
 			case "operator":
 				return "@operator";
 			}
@@ -102,10 +105,15 @@ namespace FreeActionScript
 				return;
 			foreach (var header in headers) {
 				switch (header) {
+				case "Identifier": // first of all, the actual string value should be the label. Though, C# doesn't support namespace-specific name scope. So we write "public" for this instead.
+					writer.Write ("public/*it is originally namespace-scoped*/ ");
+					break;
 				case "dynamic": // it is not supported in C# as an access modifier
 					continue;
+				default:
+					writer.Write ("{0} ", header);
+					break;
 				}
-				writer.Write ("{0} ", header);
 			}
 		}
 	}
@@ -281,7 +289,9 @@ namespace FreeActionScript
 				if (arg.IsVarArg)
 					writer.Write ("params object [] {0}", arg.Name);
 				else {
-					writer.Write ("{0} {1}", arg.Type.ToCSharp (), arg.Name);
+					writer.Write (arg.Type.ToCSharp ());
+					writer.Write (' ');
+					writer.Write (ctx.SafeName (arg.Name));
 					if (arg.DefaultValue != null) {
 						writer.Write (" = ");
 						arg.DefaultValue.GenerateCode (ctx, writer);
@@ -815,7 +825,7 @@ namespace FreeActionScript
 			writer.Write ("var ");
 			foreach (var pair in Pairs) {
 				var tail = Pairs.Last () == pair ? "" : ", ";
-				writer.Write (pair.Name);
+				writer.Write (ctx.SafeName (pair.Name));
 				if (pair.Value != null) {
 					writer.Write (" = ");
 					pair.Value.GenerateCode (ctx, writer);
@@ -857,8 +867,16 @@ namespace FreeActionScript
 		{
 			if (Value == null)
 				writer.Write ("null");
-			else if (Value is string)
-				writer.Write (Value); // huh? why is Value double-quoted?
+			else if (Value is string) {
+				string s = Value as string;
+				if (s [0] == '\'') { // 'foo' -> "foo"
+					writer.Write ('"');
+					writer.Write (s.Substring (1, s.Length - 2));
+					writer.Write ('"');
+				}
+				else
+					writer.Write (s); // huh? why is Value double-quoted?
+			}
 			else if (Value is char)
 				writer.Write ("\'" + Value + "\'");
 			else if (Value is long || Value is ulong || Value is double || Value is decimal)

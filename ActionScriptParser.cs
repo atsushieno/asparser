@@ -8,7 +8,6 @@ using Irony.Parsing;
 
 using MemberHeader = System.String;
 using MemberHeaders = System.Collections.Generic.List<string>;
-using TypeName = System.String;
 using Identifier = System.String;
 using QualifiedReference = System.String;
 
@@ -173,7 +172,7 @@ var varargs_decl = DefaultNonTerminal ("varargs_decl");
 var argument_decl = DefaultNonTerminal ("argument_declaration");
 var argument_type = DefaultNonTerminal ("argument_type");
 var qualified_reference = DefaultNonTerminal ("qualified_reference");
-var type_name = qualified_reference;//DefaultNonTerminal ("type_name");
+var type_name = DefaultNonTerminal ("type_name");
 var member_reference = DefaultNonTerminal ("member_reference");
 var assignment_opt = DefaultNonTerminal ("assignment_opt");
 var lvalue = DefaultNonTerminal ("lvalue");
@@ -510,8 +509,8 @@ qualified_reference.Rule =
 	| qualified_reference + "." + identifier
 	| qualified_reference + ".<" + type_name + ">";
 
-type_name_wild.Rule = qualified_reference | qualified_reference + ToRawTerm (".*") | ToRawTerm ("*");
-//type_name.Rule = qualified_reference;
+type_name_wild.Rule = type_name | type_name + ToRawTerm (".*") | ToRawTerm ("*");
+type_name.Rule = qualified_reference;
 semi_opt.Rule = Empty | ";";
 
 // </construction_rules>
@@ -655,7 +654,7 @@ literal_hash_expression.AstNodeCreator = create_ast_literal_hash_expression;
 hash_item.AstNodeCreator = create_ast_hash_item;
 embedded_function_expression.AstNodeCreator = create_ast_embedded_function_expression;
 type_name_wild.AstNodeCreator = create_ast_type_name_wild;
-//type_name.AstNodeCreator = create_ast_simple_list<TypeName>;
+type_name.AstNodeCreator = create_ast_type_name;
 semi_opt.AstNodeCreator = create_ast_semi_opt;
 		}
 	}

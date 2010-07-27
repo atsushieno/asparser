@@ -6,7 +6,6 @@ using Irony.Parsing;
 
 using MemberHeader = System.String;
 using MemberHeaders = System.Collections.Generic.List<string>;
-using TypeName = System.String;
 using Identifier = System.String;
 using QualifiedReference = System.String;
 using PackageContents = System.Collections.Generic.List<FreeActionScript.IPackageContent>;
@@ -536,12 +535,24 @@ namespace FreeActionScript
 
 		void create_ast_type_name_wild (ParsingContext context, ParseTreeNode node)
 		{
+			ProcessChildrenCommon (context, node);
 			string s = null;
 			foreach (var cn in node.ChildNodes) {
-				cn.Term.CreateAstNode (context, cn);
-				s += cn.AstNode;
+				if (cn.AstNode is TypeName)
+					s += cn.AstNode;
+				else
+					s += cn.Term.Name;
 			}
-			node.AstNode = s;
+			node.AstNode = new TypeName (s);
+		}
+
+		void create_ast_type_name (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node);
+			string s = null;
+			foreach (var cn in node.ChildNodes)
+				s += cn.AstNode;
+			node.AstNode = new TypeName (s);
 		}
 
 		void create_ast_qualified_reference (ParsingContext context, ParseTreeNode node)
@@ -552,7 +563,7 @@ namespace FreeActionScript
 			else if (node.ChildNodes.Count == 2)
 				node.AstNode = node.Get<string> (0) + "." + node.Get<string> (1);
 			else if (node.ChildNodes.Count == 4)
-				node.AstNode = node.Get<string> (0) + ".<" + node.Get<string> (3) + ">";
+				node.AstNode = node.Get<string> (0) + ".<" + node.Get<TypeName> (2).Raw + ">";
 		}
 
 		void create_ast_semi_opt (ParsingContext context, ParseTreeNode node)
@@ -675,7 +686,7 @@ namespace FreeActionScript
 		public EventDeclarations Events { get; set; }
 		public MemberHeaders Headers { get; set; }
 		public Identifier Name { get; set; }
-		public Identifier BaseClassName { get; set; }
+		public TypeName BaseClassName { get; set; }
 		public NamespaceUses NamespaceUses { get; private set; }
 		public ClassMembers Members { get; private set; }
 	}
@@ -696,12 +707,12 @@ namespace FreeActionScript
 
 	public partial class Import : ICompileUnitItem, IPackageContent
 	{
-		public Import (TypeName name)
+		public Import (TypeName type)
 		{
-			Name = name;
+			Type = type;
 		}
 
-		public TypeName Name { get; set; }
+		public TypeName Type { get; set; }
 	}
 
 	public partial class NamespaceDeclaration : IPackageContent, INamespaceOrClass
@@ -1199,12 +1210,20 @@ namespace FreeActionScript
 			AccessType = accessType;
 		}
 
-		//public MemberReference (Expression target, TypeName genericSubtype, MemberAccessType accessType)
-		//{
-		//}
+		public MemberReference (Expression target, TypeName genericSubtype, MemberAccessType accessType)
+		{
+			if (target == null)
+				throw new ArgumentNullException ("target");
+			if (genericSubtype == null)
+				throw new ArgumentNullException ("genericSubtype");
+			Target = target;
+			GenericSubtype = genericSubtype;
+			AccessType = accessType;
+		}
 
 		public Expression Target { get; set; }
 		public Identifier Member { get; set; }
+		public TypeName GenericSubtype { get; set; }
 		public MemberAccessType AccessType { get; set; }
 	}
 
@@ -1478,5 +1497,20 @@ namespace FreeActionScript
 		}
 
 		public object Value { get; set; }
+	}
+
+	public partial class TypeName
+	{
+		public TypeName (string raw)
+		{
+			Raw = raw;
+		}
+		
+		public string Raw { get; set; }
+		
+		public override string ToString ()
+		{
+			return Raw;
+		}
 	}
 }

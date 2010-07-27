@@ -8,13 +8,11 @@ using Irony.Parsing;
 
 using MemberHeader = System.String;
 using MemberHeaders = System.Collections.Generic.List<string>;
-using TypeName = System.String;
 using Identifier = System.String;
 using QualifiedReference = System.String;
 using PackageContents = System.Collections.Generic.List<FreeActionScript.IPackageContent>;
 using NamespaceUses = System.Collections.Generic.List<FreeActionScript.NamespaceUse>;
 using EventDeclarations = System.Collections.Generic.List<FreeActionScript.EventDeclaration>;
-//using EventDeclarationMembers = System.Collections.Generic.List<FreeActionScript.EventDeclarationMember>;
 using ClassMembers = System.Collections.Generic.List<FreeActionScript.IClassMember>;
 using FunctionCallArguments = System.Collections.Generic.List<FreeActionScript.Expression>;
 using Statements = System.Collections.Generic.List<FreeActionScript.Statement>;
@@ -178,10 +176,12 @@ namespace FreeActionScript
 	{
 		public void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
-			if (Name.EndsWith (".*", StringComparison.Ordinal))
-				writer.WriteLine ("using {0};", Name.Substring (0, Name.Length - 2));
+			// FIXME: a bit hacky use of ToString()
+			string name = Type.ToString ();
+			if (name.EndsWith (".*", StringComparison.Ordinal))
+				writer.WriteLine ("using {0};", name.Substring (0, name.Length - 2));
 			else
-				writer.WriteLine ("using {0} = {1};", Name.Substring (Name.LastIndexOf ('.') + 1), Name);
+				writer.WriteLine ("using {0} = {1};", name.Substring (name.LastIndexOf ('.') + 1), name);
 		}
 	}
 
@@ -690,14 +690,15 @@ namespace FreeActionScript
 	{
 		public void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
+			bool gen = AccessType == MemberAccessType.GenericSubtype;
 			if (Target != null) {
 				Target.GenerateCode (ctx, writer);
-				if (AccessType == MemberAccessType.GenericSubtype)
-					writer.Write ("<" + Member + ">");
+				if (gen)
+					writer.Write ("<" + GenericSubtype + ">");
 				else
 					writer.Write ("." + Member);
 			}
-			else
+			else if (!gen)
 				writer.Write (ctx.GetActualName (Member));
 		}
 	}

@@ -297,6 +297,7 @@ general_function_headless.Rule = keyword_function + identifier + function_namele
 function_nameless.Rule =
 	"(" + argument_decls + ")" + block_statement
 	| "(" + argument_decls + ")" + ":" + type_name_wild + block_statement;
+// FIXME: this does not seem to be used.
 constructor.Rule = keyword_function + identifier + "(" + argument_decls + ")" + block_statement;
 argument_decls.Rule = MakeStarRule (argument_decls, ToTerm (","), argument_decl);
 argument_decl.Rule = // FIXME: there is an ambiguation issue; on foo.<bar>=baz ">=" conflicts with comparison operator.

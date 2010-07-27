@@ -176,8 +176,7 @@ namespace FreeActionScript
 	{
 		public void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
-			// FIXME: a bit hacky use of ToString()
-			string name = Type.ToString ();
+			string name = Type.Raw;
 			if (name.EndsWith (".*", StringComparison.Ordinal))
 				writer.WriteLine ("using {0};", name.Substring (0, name.Length - 2));
 			else
@@ -201,7 +200,7 @@ namespace FreeActionScript
 			foreach (var ntv in NameTypeValues) {
 				// because AS3 variable types could differ within a line (unlike C#), they have to be declared in split form (or I have to do something more complicated.)
 				if (ntv.Type != null)
-					writer.Write (ntv.Type);
+					writer.Write (ntv.Type.ToCSharp ());
 				else
 					writer.Write ("dynamic");
 				writer.Write (' ');
@@ -241,8 +240,10 @@ namespace FreeActionScript
 		{
 			if (returnVoid)
 				writer.Write ("void");
-			else
-				writer.Write (ReturnTypeName);
+			else if (ReturnTypeName != null)
+				writer.Write (ReturnTypeName.ToCSharp ());
+			else if (!(this is Constructor))
+				writer.Write ("/* no type? */");
 			writer.Write (' ');
 			writer.Write (namePrefix);
 			writer.Write (Name);
@@ -252,7 +253,7 @@ namespace FreeActionScript
 				if (arg.IsVarArg)
 					writer.Write ("params object [] {0}", arg.Name);
 				else {
-					writer.Write ("{0} {1}", arg.Type, arg.Name);
+					writer.Write ("{0} {1}", arg.Type.ToCSharp (), arg.Name);
 					if (arg.DefaultValue != null) {
 						writer.Write (" = ");
 						arg.DefaultValue.GenerateCode (ctx, writer);
@@ -476,7 +477,7 @@ namespace FreeActionScript
 		public void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
 			if (LocalVariableType != null) {
-				writer.Write ((TypeName) LocalVariableType);
+				writer.Write (LocalVariableType.ToCSharp ());
 				writer.Write (' ');
 			}
 			writer.Write (Name);
@@ -539,7 +540,7 @@ namespace FreeActionScript
 		public void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
 			writer.Write ("catch (");
-			writer.Write (NameAndType.Type);
+			writer.Write (NameAndType.Type.ToCSharp ());
 			writer.Write (' ');
 			writer.Write (NameAndType.Name);
 			writer.Write (')');
@@ -674,7 +675,7 @@ namespace FreeActionScript
 		{
 			Primary.GenerateCode (ctx, writer);
 			writer.Write (" as ");
-			writer.Write (Type);
+			writer.Write (Type.ToCSharp ());
 		}
 	}
 
@@ -813,16 +814,6 @@ namespace FreeActionScript
 		}
 	}
 
-	/*
-	public partial class ConstantExpression : Expression
-	{
-		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
-		{
-			Value.GenerateCode (ctx, writer);
-		}
-	}
-	*/
-
 	public partial class Literal : Expression
 	{
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
@@ -837,6 +828,18 @@ namespace FreeActionScript
 				writer.Write (Value.ToString ());
 			else
 				throw new NotImplementedException ();
+		}
+	}
+
+	public partial class TypeName
+	{
+		public string ToCSharp ()
+		{
+			string s = Raw;
+			int idx;
+			while ((idx = s.IndexOf (".<")) >= 0)
+				s = s.Substring (0, idx) + "<" + s.Substring (idx + 2);
+			return s;
 		}
 	}
 }

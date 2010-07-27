@@ -94,7 +94,7 @@ namespace FreeActionScript
 		void create_ast_package_decl (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 3);
-			node.AstNode = new PackageDeclaration (node.Get<string> (1), node.Get<PackageContents> (2));
+			node.AstNode = new PackageDeclaration (node.Get<TypeName> (1), node.Get<PackageContents> (2));
 		}
 
 		void create_ast_access_modifier (ParsingContext context, ParseTreeNode node)
@@ -115,7 +115,7 @@ namespace FreeActionScript
 		void create_ast_namespace_decl (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 2);
-			node.AstNode = new NamespaceDeclaration (node.Get<Identifier> (1));
+			node.AstNode = new NamespaceDeclaration (node.Get<TypeName> (1));
 		}
 
 		void create_ast_namespace_use (ParsingContext context, ParseTreeNode node)
@@ -631,13 +631,13 @@ namespace FreeActionScript
 
 	public partial class PackageDeclaration : ICompileUnitItem
 	{
-		public PackageDeclaration (string name, PackageContents items)
+		public PackageDeclaration (TypeName name, PackageContents items)
 		{
 			Name = name;
 			Items = items;
 		}
 
-		public string Name { get; set; }
+		public TypeName Name { get; set; }
 		public PackageContents Items { get; private set; }
 	}
 
@@ -717,14 +717,14 @@ namespace FreeActionScript
 
 	public partial class NamespaceDeclaration : IPackageContent, INamespaceOrClass
 	{
-		public NamespaceDeclaration (Identifier name)
+		public NamespaceDeclaration (TypeName name)
 		{
 			Name = name;
 		}
 
 		public EventDeclarations Events { get; set; }
 		public MemberHeaders Headers { get; set; }
-		public Identifier Name { get; set; }
+		public TypeName Name { get; set; }
 	}
 
 	public partial interface IClassMember
@@ -954,9 +954,9 @@ namespace FreeActionScript
 		public Statement Body { get; set; }
 	}
 
-	public partial class ForInStatement : Statement
+	public abstract partial class ForEachInStatementBase : Statement
 	{
-		public ForInStatement (ForEachIterator iter, Expression target, Statement body)
+		protected ForEachInStatementBase (ForEachIterator iter, Expression target, Statement body)
 		{
 			Iterator = iter;
 			Target = target;
@@ -966,6 +966,22 @@ namespace FreeActionScript
 		public ForEachIterator Iterator { get; set; }
 		public Expression Target { get; set; }
 		public Statement Body { get; set; }
+	}
+
+	public partial class ForInStatement : ForEachInStatementBase
+	{
+		public ForInStatement (ForEachIterator iter, Expression target, Statement body)
+			: base (iter, target, body)
+		{
+		}
+	}
+
+	public partial class ForEachStatement : ForEachInStatementBase
+	{
+		public ForEachStatement (ForEachIterator iter, Expression target, Statement body)
+			: base (iter, target, body)
+		{
+		}
 	}
 
 	public partial class ForInitializers
@@ -1394,20 +1410,6 @@ namespace FreeActionScript
 	{
 	}
 	
-	public partial class ForEachStatement : Statement
-	{
-		public ForEachStatement (ForEachIterator iter, Expression target, Statement body)
-		{
-			Iterator = iter;
-			Target = target;
-			Body = body;
-		}
-		
-		public ForEachIterator Iterator { get; set; }
-		public Expression Target { get; set; }
-		public Statement Body { get; set; }
-	}
-
 	public partial class ThrowStatement : Statement
 	{
 		public ThrowStatement (Expression target)

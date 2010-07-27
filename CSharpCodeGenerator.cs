@@ -71,6 +71,8 @@ namespace FreeActionScript
 		{
 			// FIXME: cover all C# keywords.
 			switch (name) {
+			case "out":
+				return "@out";
 			case "int":
 				return "@int";
 			case "event":
@@ -123,7 +125,11 @@ namespace FreeActionScript
 		public void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
 			foreach (var item in Items)
-				item.GenerateCode (ctx, writer);
+				if (item is Import)
+					item.GenerateCode (ctx, writer);
+			foreach (var item in Items)
+				if (!(item is Import))
+					item.GenerateCode (ctx, writer);
 		}
 	}
 
@@ -136,7 +142,7 @@ namespace FreeActionScript
 	{
 		public void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
-			writer.WriteLine ("namespace {0}", Name);
+			writer.WriteLine ("namespace {0}", Name.ToCSharp ());
 			writer.WriteLine ("{");
 			foreach (var item in Items)
 				item.GenerateCode (ctx, writer);
@@ -213,10 +219,12 @@ namespace FreeActionScript
 		public void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
 			string name = Type.Raw;
-			if (name.EndsWith (".*", StringComparison.Ordinal))
+			if (name.EndsWith (".*", StringComparison.Ordinal)) {
+				name = Type.ToCSharp ();
 				writer.WriteLine ("using {0};", name.Substring (0, name.Length - 2));
+			}
 			else
-				writer.WriteLine ("using {0} = {1};", name.Substring (name.LastIndexOf ('.') + 1), name);
+				writer.WriteLine ("using {0} = {1};", name.Substring (name.LastIndexOf ('.') + 1), Type.ToCSharp ());
 		}
 	}
 
@@ -224,7 +232,7 @@ namespace FreeActionScript
 	{
 		public void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
-			writer.WriteLine ("using {0};", Name);
+			writer.WriteLine ("using {0};", Name.ToCSharp ());
 		}
 	}
 
@@ -471,30 +479,19 @@ namespace FreeActionScript
 	}
 	
 
-	public partial class ForInStatement : Statement
+	public abstract partial class ForEachInStatementBase : Statement
 	{
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
 			// probably the only difference from for-each is that it can declare local variable.
-			writer.Write ("foreach (");
-			Iterator.GenerateCode (ctx, writer);
+			writer.Write ("foreach (var ___");
 			writer.Write (" in ");
 			Target.GenerateCode (ctx, writer);
-			writer.WriteLine (")");
-			Body.GenerateCode (ctx, writer);
-		}
-	}
-
-	public partial class ForEachStatement : Statement
-	{
-		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
-		{
-			writer.Write ("foreach (");
+			writer.WriteLine (") {");
 			Iterator.GenerateCode (ctx, writer);
-			writer.Write (" in ");
-			Target.GenerateCode (ctx, writer);
-			writer.WriteLine (")");
+			writer.WriteLine (" = ___;");
 			Body.GenerateCode (ctx, writer);
+			writer.WriteLine ("}");
 		}
 	}
 
@@ -899,6 +896,16 @@ namespace FreeActionScript
 
 			if (s == "*")
 				return "dynamic";
+
+			var arr = s.Split ('.');
+			for (int i = 0; i < arr.Length; i++) {
+				// FIXME: support all C# keywords.
+				if (arr [i] == "base")
+					arr [i] = "_" + arr [i];
+				else
+					arr [i] = arr [i];
+			}
+			s = String.Join (".", arr);
 
 			int idx;
 			while ((idx = s.IndexOf (".<")) >= 0)

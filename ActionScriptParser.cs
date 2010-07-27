@@ -258,13 +258,13 @@ var literal = DefaultNonTerminal ("literal");
 compile_unit.Rule = MakeStarRule (compile_unit, null, compile_unit_item);
 compile_unit_item.Rule = package_decl | import | namespace_or_class;
 package_decl.Rule = keyword_package + package_name + "{" + package_contents + "}";
-package_name.Rule = qualified_reference;
+package_name.Rule = type_name;
 package_contents.Rule = MakeStarRule (package_contents, null, package_content);
 package_content.Rule = import | namespace_or_class;
 // It is wrong if event_decls are placed before namespace decl, having them before namespace_decl and class_decl results in shift-reduce conflict, and there is no good way to resolve this extra event_decls issue.
 namespace_or_class.Rule = event_decls + member_header + namespace_or_class_headless;
 namespace_or_class_headless.Rule = namespace_decl | class_decl;
-namespace_decl.Rule = keyword_namespace + identifier + ";";
+namespace_decl.Rule = keyword_namespace + type_name + ";";
 
 import.Rule = keyword_import + type_name_wild + ";";
 namespace_uses.Rule = MakeStarRule (namespace_uses, null, namespace_use);

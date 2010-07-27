@@ -567,7 +567,7 @@ MarkTransient (compile_unit_item, package_name, package_content, namespace_or_cl
 			else
 				throw new NotImplementedException ("Not supported number value: " + s);
 			};
-		regex_literal.AstNodeCreator = delegate (ParsingContext ctx, ParseTreeNode node) { node.AstNode = node.FindTokenAndGetText (); };
+		regex_literal.AstNodeCreator = delegate (ParsingContext ctx, ParseTreeNode node) { node.AstNode = new RegexLiteral (node.FindTokenAndGetText ()); };
 
 		compile_unit.AstNodeCreator = create_ast_compile_unit;
 		package_decl.AstNodeCreator = create_ast_package_decl;

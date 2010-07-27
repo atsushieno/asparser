@@ -1513,4 +1513,14 @@ namespace FreeActionScript
 			return Raw;
 		}
 	}
+
+	public partial class RegexLiteral
+	{
+		public RegexLiteral (string pattern)
+		{
+			Pattern = pattern;
+		}
+		
+		public string Pattern { get; set; }
+	}
 }

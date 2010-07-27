@@ -52,6 +52,13 @@ namespace FreeActionScript
 		public PropertySetter CurrentPropertySetter { get; set; }
 		public bool InForHeadings { get; set; }
 
+		int anonidx;
+
+		public int NextAnonymousMethodIndex ()
+		{
+			return anonidx++;
+		}
+
 		public Identifier GetActualName (Identifier name)
 		{
 			if (CurrentPropertySetter != null && CurrentPropertySetter.Definition.Name == name)
@@ -64,10 +71,12 @@ namespace FreeActionScript
 		{
 			switch (name) {
 			case "int":
-				return "(int)"; // FIXME: this is just a workaround for operator int in AS3.
+				return "@int";
 			case "operator":
 				return "@operator";
 			}
+			if (name.Length > 0 && name [0] == '$')
+				return "__" + name.Substring (1);
 			return name;
 		}
 
@@ -91,8 +100,13 @@ namespace FreeActionScript
 		{
 			if (headers == null) // Constructor has no access modifier
 				return;
-			foreach (var header in headers)
+			foreach (var header in headers) {
+				switch (header) {
+				case "dynamic": // it is not supported in C# as an access modifier
+					continue;
+				}
 				writer.Write ("{0} ", header);
+			}
 		}
 	}
 
@@ -385,7 +399,7 @@ namespace FreeActionScript
 			if (Label == Default)
 				writer.WriteLine ("default:");
 			else {
-				writer.WriteLine ("case {0}");
+				writer.Write ("case ");
 				if (Label is Literal)
 					((Literal) Label).GenerateCode (ctx, writer);
 				else
@@ -604,7 +618,11 @@ namespace FreeActionScript
 		{
 			Left.GenerateCode (ctx, writer);
 			writer.Write (' ');
-			writer.Write (Operator);
+			switch (Operator) {
+			case "===": writer.Write ("== /* === */"); break;
+			case "!==": writer.Write ("!= /* === */"); break;
+			default: writer.Write (Operator); break;
+			}
 			writer.Write (' ');
 			Right.GenerateCode (ctx, writer);
 		}
@@ -653,13 +671,11 @@ namespace FreeActionScript
 	{
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
-			writer.Write ("(from ");
-			Threshold.GenerateCode (ctx, writer);
-			writer.Write (" in ");
+			writer.Write ("Array.IndexOf (");
 			Array.GenerateCode (ctx, writer);
-			writer.Write (" select ");
+			writer.Write (", ");
 			Threshold.GenerateCode (ctx, writer);
-			writer.Write (')');
+			writer.Write (") >= 0");
 		}
 	}
 
@@ -757,7 +773,7 @@ namespace FreeActionScript
 	{
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
-			writer.Write ("Util.CreateLiteralHash ({");
+			writer.Write ("Util.CreateLiteralHash (new object [] {");
 			foreach (var pair in Values) {
 				var tail = Values.Last () == pair ? "" : ", ";
 				if (pair.Key is Literal)
@@ -775,7 +791,7 @@ namespace FreeActionScript
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
 			if (Function.Name == null) {
-				Function.Name = "__anonymous" + Guid.NewGuid ();
+				Function.Name = "__anonymous" + ctx.NextAnonymousMethodIndex ();
 				Function.GenerateCode (ctx, ctx.CurrentClassWriter);
 			}
 			writer.WriteLine ("/* embedded function {0} is written as a class member.*/", Function.Name);
@@ -847,6 +863,11 @@ namespace FreeActionScript
 				writer.Write ("\'" + Value + "\'");
 			else if (Value is long || Value is ulong || Value is double || Value is decimal)
 				writer.Write (Value.ToString ());
+			else if (Value is RegexLiteral) {
+				writer.Write ("new System.Text.RegularExpressions.Regex (@\"");
+				writer.Write (((RegexLiteral) Value).Pattern);
+				writer.Write ("\")");
+			}
 			else
 				throw new NotImplementedException ();
 		}

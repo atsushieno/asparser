@@ -62,7 +62,7 @@ namespace FreeActionScript
 
 		public static void Main (string [] args)
 		{
-			if (args.Length == 0) {
+			if (args.Length < 2) {
 				ProcessParseTreeNode (new ActionScriptGrammar ().Root);
 				return;
 			}
@@ -70,7 +70,10 @@ namespace FreeActionScript
 			var grammar = new ActionScriptGrammar ();
 			var parser = new Parser (grammar);
 
-			string [] files = File.ReadAllLines (args [0]);
+			string [] files = Directory.GetFiles (args [0], "*.as", SearchOption.AllDirectories);
+			if (!Directory.Exists (args [1]))
+				Directory.CreateDirectory (args [1]);
+
 			var trees = new List<ParseTree> ();
 			foreach (var arg in files) {
 				Console.Write ("parsing {0} ...", arg);
@@ -87,7 +90,8 @@ namespace FreeActionScript
 				new CSharpCodeGenerator ((CompileUnit) pt.Root.AstNode, Console.Out).GenerateCode ();
 				break;
 #else
-				new CSharpCodeGenerator ((CompileUnit) pt.Root.AstNode, TextWriter.Null).GenerateCode ();
+				using (var sw = File.CreateText (Path.Combine (args [1], Path.ChangeExtension (Path.GetFileName (arg), ".cs"))))
+					new CSharpCodeGenerator ((CompileUnit) pt.Root.AstNode, sw).GenerateCode ();
 #endif
 				Console.WriteLine ("done");
 			}

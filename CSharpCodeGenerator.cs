@@ -50,13 +50,25 @@ namespace FreeActionScript
 	{
 		public TextWriter CurrentClassWriter { get; set; }
 		public PropertySetter CurrentPropertySetter { get; set; }
+		public bool InForHeadings { get; set; }
 
 		public Identifier GetActualName (Identifier name)
 		{
 			if (CurrentPropertySetter != null && CurrentPropertySetter.Definition.Name == name)
 				return "value";
 			else
-				return name;
+				return SafeName (name);
+		}
+
+		public Identifier SafeName (Identifier name)
+		{
+			switch (name) {
+			case "int":
+				return "(int)"; // FIXME: this is just a workaround for operator int in AS3.
+			case "operator":
+				return "@operator";
+			}
+			return name;
 		}
 
 		public string ToCSharpCode (AssignmentOperators oper)
@@ -129,8 +141,10 @@ namespace FreeActionScript
 			ctx.WriteHeaders (Headers, writer);
 			writer.WriteLine ("class {0}{1}{2}", Name, BaseClassName != null ? " : " : null, BaseClassName);
 			writer.WriteLine ("{");
-			foreach (var nsuse in NamespaceUses)
-				writer.WriteLine ("using {0};", nsuse.Name);
+			foreach (var nsuse in NamespaceUses) {
+				writer.WriteLine ("// FIXME: using directive inside class declaration is not allowed in C#");
+				writer.WriteLine ("// using {0};", nsuse.Name);
+			}
 			foreach (var item in Members)
 				item.GenerateCode (ctx, writer);
 
@@ -149,11 +163,11 @@ namespace FreeActionScript
 		public void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
 			writer.Write ("[");
-			writer.Write (Name);
+			writer.Write (Name.ToCSharp ());
 			writer.Write ("(");
 			foreach (var member in Members) {
 				var tail = Members.Last () == member ? "" : ", ";
-				writer.Write (member.Name);
+				writer.Write (ctx.SafeName (member.Name));
 				writer.Write (" = ");
 				writer.Write (member.Value);
 				writer.Write (tail);
@@ -204,7 +218,7 @@ namespace FreeActionScript
 				else
 					writer.Write ("dynamic");
 				writer.Write (' ');
-				writer.Write (ntv.Name);
+				writer.Write (ctx.SafeName (ntv.Name));
 				if (ntv.Value != null) {
 					writer.Write (" = ");
 					ntv.Value.GenerateCode (ctx, writer);
@@ -246,7 +260,7 @@ namespace FreeActionScript
 				writer.Write ("/* no type? */");
 			writer.Write (' ');
 			writer.Write (namePrefix);
-			writer.Write (Name);
+			writer.Write (ctx.SafeName (Name));
 			writer.Write (" (");
 			foreach (var arg in Arguments) {
 				var tail = Arguments.Last () == arg ? "" : ", ";
@@ -304,7 +318,8 @@ namespace FreeActionScript
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
 			Expression.GenerateCode (ctx, writer);
-			writer.WriteLine (';');
+			if (!ctx.InForHeadings)
+				writer.WriteLine (';');
 		}
 	}
 
@@ -315,7 +330,8 @@ namespace FreeActionScript
 			Target.GenerateCode (ctx, writer);
 			writer.Write (" {0}= ", ctx.ToCSharpCode (Operator));
 			Value.GenerateCode (ctx, writer);
-			writer.WriteLine (';');
+			if (!ctx.InForHeadings)
+				writer.WriteLine (';');
 		}
 	}
 
@@ -408,9 +424,10 @@ namespace FreeActionScript
 	{
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
+			ctx.InForHeadings = true;
 			writer.Write ("for (");
 			Initializers.GenerateCode (ctx, writer);
-			// writer.Write ("; "); // no need for that; initializers are written as a statement.
+			writer.Write ("; ");
 			Condition.GenerateCode (ctx, writer);
 			writer.Write ("; ");
 			foreach (var iter in Iterators) {
@@ -418,6 +435,7 @@ namespace FreeActionScript
 				iter.GenerateCode (ctx, writer);
 				writer.Write (tail);
 			}
+			ctx.InForHeadings = false;
 			writer.WriteLine (')');
 			Body.GenerateCode (ctx, writer);
 		}
@@ -480,7 +498,7 @@ namespace FreeActionScript
 				writer.Write (LocalVariableType.ToCSharp ());
 				writer.Write (' ');
 			}
-			writer.Write (Name);
+			writer.Write (ctx.SafeName (Name));
 		}
 	}
 
@@ -517,6 +535,7 @@ namespace FreeActionScript
 		{
 			writer.Write ("throw ");
 			Target.GenerateCode (ctx, writer);
+			writer.WriteLine (';');
 		}
 	}
 
@@ -542,7 +561,7 @@ namespace FreeActionScript
 			writer.Write ("catch (");
 			writer.Write (NameAndType.Type.ToCSharp ());
 			writer.Write (' ');
-			writer.Write (NameAndType.Name);
+			writer.Write (ctx.SafeName (NameAndType.Name));
 			writer.Write (')');
 			Block.GenerateCode (ctx, writer);
 		}
@@ -697,7 +716,7 @@ namespace FreeActionScript
 				if (gen)
 					writer.Write ("<" + GenericSubtype + ">");
 				else
-					writer.Write ("." + Member);
+					writer.Write ("." + ctx.SafeName (Member));
 			}
 			else if (!gen)
 				writer.Write (ctx.GetActualName (Member));
@@ -709,7 +728,7 @@ namespace FreeActionScript
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
 			writer.Write ("new ");
-			writer.Write (Name);
+			writer.Write (Name.ToCSharp ());
 			writer.Write ('(');
 			foreach (var expr in Arguments) {
 				var tail = Arguments.Last () == expr ? "" : ", ";
@@ -787,7 +806,8 @@ namespace FreeActionScript
 				}
 				writer.Write (tail);
 			}
-			writer.WriteLine (';');
+			if (!ctx.InForHeadings)
+				writer.WriteLine (';');
 		}
 	}
 
@@ -800,7 +820,8 @@ namespace FreeActionScript
 			writer.Write (Operator);
 			writer.Write (' ');
 			Right.GenerateCode (ctx, writer);
-			writer.Write (';');
+			if (!ctx.InForHeadings)
+				writer.WriteLine (';');
 		}
 	}
 
@@ -821,7 +842,7 @@ namespace FreeActionScript
 			if (Value == null)
 				writer.Write ("null");
 			else if (Value is string)
-				writer.Write ("\"" + Value + "\"");
+				writer.Write (Value); // huh? why is Value double-quoted?
 			else if (Value is char)
 				writer.Write ("\'" + Value + "\'");
 			else if (Value is long || Value is ulong || Value is double || Value is decimal)
@@ -836,6 +857,10 @@ namespace FreeActionScript
 		public string ToCSharp ()
 		{
 			string s = Raw;
+
+			if (s == "*")
+				return "dynamic";
+
 			int idx;
 			while ((idx = s.IndexOf (".<")) >= 0)
 				s = s.Substring (0, idx) + "<" + s.Substring (idx + 2);

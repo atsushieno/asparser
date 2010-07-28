@@ -1,4 +1,22 @@
-experimental hack.
+asparser converts ActionScript3 sources into C#.
 
-For irony, check out http://irony.codeplex.com/ .
+asparser is an experimental hack for my own purpose.
+It does not aim to become a useful conversion tool for everyone.
+It will lack a lot of required features.
 
+asparser uses Irony parser framework, which is available at:
+http://irony.codeplex.com/
+
+There is a lot of limitation and I don't give high priority to fix them. I rather modify sources files whenever easier.
+
+Some known issues:
+
+	- Semicolons are *required* at end of line (they are optional in AS3).
+	- Concatenation of generic operator and let operator conflicts with
+	  less-equal operator: foo.<bar>=1 must be rewritten to foo.<bar> = 1
+	- Multiple imports of a type results in errors, as I use "using x = y;"
+	  and multiple mapping to the same alias is prohibited.
+	- Some operators are not converted correctly: ===, !==, >>>, <<<
+	  (grep around the sources files to find out how they are converted.)
+
+Atsushi Eno

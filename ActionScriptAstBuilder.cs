@@ -136,6 +136,13 @@ namespace FreeActionScript
 			node.AstNode = new ClassDeclaration (node.Get<Identifier> (1), node.GetNullable<TypeName> (2), node.Get<NamespaceUses> (3), node.Get<ClassMembers> (4));
 		}
 
+		void create_ast_opt_extends (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 0, 2);
+			if (node.ChildNodes.Count != 0)
+				node.AstNode = node.Get<TypeName> (1);
+		}
+
 		void create_ast_event_decl (ParsingContext context, ParseTreeNode node) 
 		{
 			ProcessChildrenCommon (context, node, 4);

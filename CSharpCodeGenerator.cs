@@ -41,6 +41,10 @@ namespace FreeActionScript
 		public void GenerateCode ()
 		{
 			writer.WriteLine ("// This source is automatically generated");
+			writer.WriteLine ("using System;");
+			writer.WriteLine ("using Number = System.Double;");
+			writer.WriteLine ("using Class = System.Type;");
+
 			var ctx = new CodeGenerationContext ();
 			root.GenerateCode (ctx, writer);
 		}
@@ -101,7 +105,7 @@ namespace FreeActionScript
 			throw new ArgumentException ();
 		}
 		
-		public void WriteHeaders (MemberHeaders headers, TextWriter writer)
+		public void WriteHeaders (MemberHeaders headers, TextWriter writer, bool autoFillVirtual)
 		{
 			if (headers == null) // Constructor has no access modifier
 				return;
@@ -120,7 +124,11 @@ namespace FreeActionScript
 					break;
 				}
 			}
+			if (autoFillVirtual && !headers.Any (h => Array.IndexOf (virtual_suppressor, h) >= 0))
+				writer.Write ("virtual ");
 		}
+		
+		static readonly string [] virtual_suppressor = {"override", "private", "static"};
 	}
 
 	public partial class CompileUnit
@@ -169,8 +177,8 @@ namespace FreeActionScript
 			writer.WriteLine ("// class {0}", Name);
 			foreach (var ev in Events)
 				ev.GenerateCode (ctx, writer);
-			ctx.WriteHeaders (Headers, writer);
-			writer.WriteLine ("class {0}{1}{2}", Name, BaseClassName != null ? " : " : null, BaseClassName);
+			ctx.WriteHeaders (Headers, writer, false);
+			writer.WriteLine ("class {0}{1}{2}", Name, BaseClassName != null ? " : " : " : global::Object", BaseClassName);
 			writer.WriteLine ("{");
 			foreach (var nsuse in NamespaceUses) {
 				writer.WriteLine ("// FIXME: using directive inside class declaration is not allowed in C#");
@@ -221,11 +229,16 @@ namespace FreeActionScript
 	{
 		public void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
-			string name = Type.Raw;
-			if (name.EndsWith (".*", StringComparison.Ordinal)) {
-				name = Type.ToCSharp ();
-				writer.WriteLine ("using {0};", name.Substring (0, name.Length - 2));
-			}
+			string name = Type.ToCSharp ();
+			// FIXME: this is sort of hack, but it is not really definite way to determine if the import is for a namespace or a type. So, basically I treat such ones that 1) if it ends with .* or 2) if the final identifier after '.' begins with Uppercase, as a namespace.
+			bool isNS = name.EndsWith (".*", StringComparison.Ordinal);
+			if (isNS)
+				name = name.Substring (0, name.Length - 2);
+			int idx = name.LastIndexOf ('.');
+			if (idx > 0 && idx + 1 < name.Length && !Char.IsUpper (name [idx + 1]))
+				isNS = true;
+			if (isNS)
+				writer.WriteLine ("using {0};", name);
 			else
 				writer.WriteLine ("using {0} = {1};", name.Substring (name.LastIndexOf ('.') + 1), Type.ToCSharp ());
 		}
@@ -235,7 +248,8 @@ namespace FreeActionScript
 	{
 		public void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
-			writer.WriteLine ("using {0};", Name.ToCSharp ());
+			// There is no corresponding concept in C# for AS3's namespace inside package - I just output namespace inside namespace to suppress error messages.
+			writer.WriteLine ("namespace {0} {{}}", Name.ToCSharp ());
 		}
 	}
 
@@ -243,7 +257,7 @@ namespace FreeActionScript
 	{
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
-			ctx.WriteHeaders (Headers, writer);
+			ctx.WriteHeaders (Headers, writer, false);
 			foreach (var ntv in NameTypeValues) {
 				// because AS3 variable types could differ within a line (unlike C#), they have to be declared in split form (or I have to do something more complicated.)
 				if (ntv.Type != null)
@@ -270,7 +284,7 @@ namespace FreeActionScript
 
 		internal void OnGenerateCode (CodeGenerationContext ctx, TextWriter writer, bool returnVoid, string namePrefix)
 		{
-			ctx.WriteHeaders (Headers, writer);
+			ctx.WriteHeaders (Headers, writer, Definition.ReturnTypeName != null); // looks like only constructors have no return type.
 			Definition.OnGenerateCode (ctx, writer, returnVoid, namePrefix);
 			writer.WriteLine ();
 		}

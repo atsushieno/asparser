@@ -52,7 +52,7 @@ namespace flash.events
 	{
 	}
 
-	public class EventDispatcher : Object
+	public class EventDispatcher : global::Object
 	{
 	}
 }
@@ -86,6 +86,13 @@ namespace flash.net
 	}
 }
 
+namespace flash.system
+{
+	public class System
+	{
+	}
+}
+
 namespace flash.text
 {
 	public class TextField
@@ -115,17 +122,20 @@ public class Error
 {
 }
 
-public class Object
+public class GlobalContext
 {
-	public long getTimer ()
+	public static int getTimer ()
 	{
 		throw new NotImplementedException ();
 	}
+}
 
-//	public virtual String toString ()
-//	{
-//		return obj.ToString ();
-//	}
+public class Object
+{
+	public virtual String toString ()
+	{
+		return obj.ToString ();
+	}
 }
 
 public class Array

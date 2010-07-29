@@ -230,6 +230,13 @@ namespace FreeActionScript
 		public void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
 			string name = Type.ToCSharp ();
+
+			// package functions cannot be imported. So disable them (as comment).
+			switch (name) {
+			case "flash.utils.getTimer":
+				writer.Write ("// ");
+			}
+
 			// FIXME: this is sort of hack, but it is not really definite way to determine if the import is for a namespace or a type. So, basically I treat such ones that 1) if it ends with .* or 2) if the final identifier after '.' begins with Uppercase, as a namespace.
 			bool isNS = name.EndsWith (".*", StringComparison.Ordinal);
 			if (isNS)
@@ -307,7 +314,10 @@ namespace FreeActionScript
 				writer.Write ("/* no type? */");
 			writer.Write (' ');
 			writer.Write (namePrefix);
-			writer.Write (ctx.SafeName (Name));
+			if (Name == "getTimer")
+				writer.Write ("GlobalContext.getTimer");
+			else
+				writer.Write (ctx.SafeName (Name));
 			writer.Write (" (");
 			foreach (var arg in Arguments) {
 				var tail = Arguments.Last () == arg ? "" : ", ";

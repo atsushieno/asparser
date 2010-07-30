@@ -105,7 +105,7 @@ namespace FreeActionScript
 			throw new ArgumentException ();
 		}
 		
-		public void WriteHeaders (MemberHeaders headers, TextWriter writer, bool autoFillVirtual)
+		public void WriteHeaders (MemberHeaders headers, TextWriter writer, bool autoFillVirtual, bool suppressStatic)
 		{
 			if (headers == null) // Constructor has no access modifier
 				return;
@@ -119,6 +119,10 @@ namespace FreeActionScript
 					break;
 				case "dynamic": // it is not supported in C# as an access modifier
 					continue;
+				case "static":
+					if (suppressStatic)
+					continue;
+					goto default;
 				default:
 					writer.Write ("{0} ", header);
 					break;
@@ -177,7 +181,7 @@ namespace FreeActionScript
 			writer.WriteLine ("// class {0}", Name);
 			foreach (var ev in Events)
 				ev.GenerateCode (ctx, writer);
-			ctx.WriteHeaders (Headers, writer, false);
+			ctx.WriteHeaders (Headers, writer, false, false);
 			writer.WriteLine ("class {0}{1}{2}", Name, BaseClassName != null ? " : " : " : global::Object", BaseClassName);
 			writer.WriteLine ("{");
 			foreach (var nsuse in NamespaceUses) {
@@ -235,6 +239,7 @@ namespace FreeActionScript
 			switch (name) {
 			case "flash.utils.getTimer":
 				writer.Write ("// ");
+				break;
 			}
 
 			// FIXME: this is sort of hack, but it is not really definite way to determine if the import is for a namespace or a type. So, basically I treat such ones that 1) if it ends with .* or 2) if the final identifier after '.' begins with Uppercase, as a namespace.
@@ -264,9 +269,11 @@ namespace FreeActionScript
 	{
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
-			ctx.WriteHeaders (Headers, writer, false);
+			ctx.WriteHeaders (Headers, writer, false, this is ConstantDeclaration);
 			foreach (var ntv in NameTypeValues) {
 				// because AS3 variable types could differ within a line (unlike C#), they have to be declared in split form (or I have to do something more complicated.)
+				if (this is ConstantDeclaration)
+					writer.Write ("const ");
 				if (ntv.Type != null)
 					writer.Write (ntv.Type.ToCSharp ());
 				else
@@ -291,7 +298,7 @@ namespace FreeActionScript
 
 		internal void OnGenerateCode (CodeGenerationContext ctx, TextWriter writer, bool returnVoid, string namePrefix)
 		{
-			ctx.WriteHeaders (Headers, writer, Definition.ReturnTypeName != null); // looks like only constructors have no return type.
+			ctx.WriteHeaders (Headers, writer, Definition.ReturnTypeName != null, false); // looks like only constructors have no return type.
 			Definition.OnGenerateCode (ctx, writer, returnVoid, namePrefix);
 			writer.WriteLine ();
 		}
@@ -316,6 +323,8 @@ namespace FreeActionScript
 			writer.Write (namePrefix);
 			if (Name == "getTimer")
 				writer.Write ("GlobalContext.getTimer");
+			else if (Name == "toString")
+				writer.Write ("ToString");
 			else
 				writer.Write (ctx.SafeName (Name));
 			writer.Write (" (");

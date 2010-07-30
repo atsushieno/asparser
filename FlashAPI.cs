@@ -35,6 +35,10 @@ namespace flash.events
 {
 	public class Event : global::Object
 	{
+		public virtual Event clone ()
+		{
+			throw new NotImplementedException ();
+		}
 	}
 
 	public class ErrorEvent : Event
@@ -132,10 +136,10 @@ public class GlobalContext
 
 public class Object
 {
-	public virtual String toString ()
-	{
-		return obj.ToString ();
-	}
+//	public virtual String toString ()
+//	{
+//		return obj.ToString ();
+//	}
 }
 
 public class Array

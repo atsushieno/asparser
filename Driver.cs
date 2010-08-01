@@ -86,13 +86,13 @@ namespace FreeActionScript
 				grammar.CreateAstNode (parser.Context, pt.Root);
 				trees.Add (pt);
 				
-#if false
-				new CSharpCodeGenerator ((CompileUnit) pt.Root.AstNode, Console.Out).GenerateCode ();
-				break;
-#else
-				using (var sw = File.CreateText (Path.Combine (args [1], Path.ChangeExtension (Path.GetFileName (arg), ".cs"))))
+				string newpath = new Uri (Path.GetFullPath (args [0])).MakeRelative (new Uri (Path.GetFullPath (arg)));
+				newpath = Path.Combine (args [1], Path.ChangeExtension (newpath, ".cs"));
+				string dir = Path.GetDirectoryName (newpath);
+				if (!Directory.Exists (dir))
+					Directory.CreateDirectory (dir);
+				using (var sw = File.CreateText (newpath))
 					new CSharpCodeGenerator ((CompileUnit) pt.Root.AstNode, sw).GenerateCode ();
-#endif
 				Console.WriteLine ("done");
 			}
 		}

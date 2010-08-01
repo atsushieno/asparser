@@ -212,7 +212,7 @@ namespace FreeActionScript
 				var tail = Members.Last () == member ? "" : ", ";
 				writer.Write (ctx.SafeName (member.Name));
 				writer.Write (" = ");
-				writer.Write (member.Value);
+				member.Value.GenerateCode (ctx, writer);
 				writer.Write (tail);
 			}
 			writer.WriteLine (")]");

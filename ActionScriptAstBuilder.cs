@@ -43,6 +43,13 @@ namespace FreeActionScript
 				cn.Term.CreateAstNode (ctx, cn);
 		}
 
+		void create_ast_select_optional_single_child (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 0, 1);
+			if (node.ChildNodes.Count == 1)
+				node.AstNode = node.GetNullable<object> (0);
+		}
+
 		void create_ast_select_single_child (ParsingContext context, ParseTreeNode parseNode)
 		{
 			if (parseNode.ChildNodes.Count != 1)
@@ -215,6 +222,12 @@ namespace FreeActionScript
 			var fd = new FunctionDefinition (node.Get<ArgumentDeclarations> (4), node.GetNullable<TypeName> (6), null);
 			fd.Name = node.Get<Identifier> (2);
 			node.AstNode = new GeneralFunction (node.Get<MemberHeaders> (0), fd);
+		}
+
+		void create_ast_return_type (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 1);
+			node.AstNode = node.Get<TypeName> (0);
 		}
 
 		void create_ast_argument_decl (ParsingContext context, ParseTreeNode node)

@@ -54,6 +54,7 @@ namespace FreeActionScript
 	public partial class CodeGenerationContext
 	{
 		public TextWriter CurrentClassWriter { get; set; }
+		public ClassDeclaration CurrentType { get; set; } // probably needs to be modified to allow interfaces (so far they are ClassDeclaration too though)
 		public PropertySetter CurrentPropertySetter { get; set; }
 		public bool InForHeadings { get; set; }
 
@@ -80,6 +81,8 @@ namespace FreeActionScript
 				return "@out";
 			case "int":
 				return "@int";
+			case "uint":
+				return "@uint";
 			case "event":
 				return "@event";
 			case "operator":
@@ -178,6 +181,8 @@ namespace FreeActionScript
 			var parentClassWriter = ctx.CurrentClassWriter;
 			var sw = new StringWriter ();
 			ctx.CurrentClassWriter = sw;
+			var parentType = ctx.CurrentType;
+			ctx.CurrentType = this;
 
 			writer.WriteLine ("// class {0}", Name);
 			foreach (var ev in Events)
@@ -198,6 +203,7 @@ namespace FreeActionScript
 			writer.WriteLine ("}");
 			writer.WriteLine ("// end of class {0}", Name);
 
+			ctx.CurrentType = parentType;
 			ctx.CurrentClassWriter = parentClassWriter;
 		}
 	}
@@ -277,6 +283,8 @@ namespace FreeActionScript
 					writer.Write ("const ");
 				if (ntv.Type != null)
 					writer.Write (ntv.Type.ToCSharp ());
+				else if (ntv.Value != null)
+					writer.Write ("var");
 				else
 					writer.Write ("dynamic");
 				writer.Write (' ');
@@ -299,7 +307,10 @@ namespace FreeActionScript
 
 		internal void OnGenerateCode (CodeGenerationContext ctx, TextWriter writer, bool returnVoid, string namePrefix)
 		{
-			ctx.WriteHeaders (Headers, writer, Definition.ReturnTypeName != null, false); // looks like only constructors have no return type.
+			// looks like only constructors have no return type.
+			// Body is checked to distinguish class and interface.
+			bool isInterface = Definition.Body == null;
+			ctx.WriteHeaders (Headers, writer, Definition.ReturnTypeName != null && !isInterface, false);
 			Definition.OnGenerateCode (ctx, writer, returnVoid, namePrefix);
 			writer.WriteLine ();
 		}
@@ -314,11 +325,12 @@ namespace FreeActionScript
 		
 		internal void OnGenerateCode (CodeGenerationContext ctx, TextWriter writer, bool returnVoid, string namePrefix)
 		{
+			bool isConstructor = ctx.CurrentType != null && ctx.CurrentType.Name == Name;
 			if (returnVoid)
 				writer.Write ("void");
-			else if (ReturnTypeName != null)
+			else if (!isConstructor && ReturnTypeName != null)
 				writer.Write (ReturnTypeName.ToCSharp ());
-			else if (!(this is Constructor))
+			else if (!isConstructor)
 				writer.Write ("/* no type? */");
 			writer.Write (' ');
 			writer.Write (namePrefix);
@@ -344,11 +356,13 @@ namespace FreeActionScript
 				}
 				writer.Write (tail);
 			}
-			writer.WriteLine (')');
+			writer.Write (')');
 			if (Body == null) // interface
 				writer.WriteLine (';');
-			else
+			else {
+				writer.WriteLine ();
 				Body.GenerateCode (ctx, writer);
+			}
 		}
 	}
 
@@ -863,7 +877,11 @@ namespace FreeActionScript
 	{
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
-			writer.Write ("dynamic ");
+			if (Pairs.Any (p => p.Value != null))
+				writer.Write ("var ");
+			else
+				writer.Write ("dynamic ");
+
 			foreach (var pair in Pairs) {
 				var tail = Pairs.Last () == pair ? "" : ", ";
 				writer.Write (ctx.SafeName (pair.Name));

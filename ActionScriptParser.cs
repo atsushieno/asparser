@@ -177,6 +177,7 @@ var function_nameless = DefaultNonTerminal ("function_nameless");
 var general_function_decl = DefaultNonTerminal ("general_function_decl");
 var constructor = DefaultNonTerminal ("constructor");
 var opt_return_type = DefaultNonTerminal ("opt_return_type");
+var return_type = DefaultNonTerminal ("return_type");
 var argument_decls = DefaultNonTerminal ("argument_declarations");
 var varargs_decl = DefaultNonTerminal ("varargs_decl");
 var argument_decl = DefaultNonTerminal ("argument_declaration");
@@ -315,7 +316,8 @@ function_nameless.Rule =
 	| "(" + argument_decls + ")" + ":" + type_name_wild + block_statement;
 general_function_decl.Rule = member_header + keyword_function + identifier + "(" + argument_decls + ")" + opt_return_type + ";";
 constructor.Rule = keyword_function + identifier + "(" + argument_decls + ")" + opt_return_type + block_statement;
-opt_return_type.Rule = Empty | ":" + type_name_wild;
+opt_return_type.Rule = Empty | return_type;
+return_type.Rule = ":" + type_name_wild;
 argument_decls.Rule = MakeStarRule (argument_decls, ToTerm (","), argument_decl);
 argument_decl.Rule = // FIXME: there is an ambiguation issue; on foo.<bar>=baz ">=" conflicts with comparison operator.
 	identifier + ":" + argument_type + assignment_opt
@@ -620,6 +622,8 @@ function_nameless.AstNodeCreator = create_ast_function_nameless;
 constructor.AstNodeCreator = create_ast_constructor;
 general_function_decl.AstNodeCreator = create_ast_general_function_decl;
   argument_decls.AstNodeCreator = create_ast_simple_list<ArgumentDeclaration>;
+opt_return_type.AstNodeCreator = create_ast_select_optional_single_child;
+return_type.AstNodeCreator = create_ast_return_type;
 argument_decl.AstNodeCreator = create_ast_argument_decl;
 varargs_decl.AstNodeCreator = create_ast_varargs_decl;
 qualified_reference.AstNodeCreator = create_ast_qualified_reference;

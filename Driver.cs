@@ -36,7 +36,7 @@ namespace FreeActionScript
 					Console.Write (' ');
 				}
 			Console.WriteLine ();
-			if ((nt.Flags & TermFlags.IsList) != 0 && nt.Productions [0].RValues [0] == nt) {
+			if ((nt.Flags & TermFlags.IsList) != 0 && nt.Productions.Count > 0 && nt.Productions [0].RValues [0] == nt) {
 				var cnt = nt.Productions [0].RValues.Last () as NonTerminal;
 				if (cnt != null)
 					Console.WriteLine ("\t\tpublic {0} {1} {{ get; set; }}", node_names [cnt], ToPascalCase (cnt.Name));

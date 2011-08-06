@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 using flash;
 using flash.display;
@@ -106,16 +108,51 @@ namespace flash.text
 
 namespace flash.utils
 {
-	public class ByteArray
+	public class ByteArray : List<byte>
 	{
+		public int length {
+			get { return Count; }
+		}
 	}
 }
 
 
 // __Global__
 
-public class Vector<T>
+public class Vector<T> : List<T>
 {
+	public Vector ()
+	{
+	}
+
+	public Vector (object capacity)
+		: base (Convert.ToInt32 (capacity))
+	{
+	}
+
+	public Vector (object capacity, bool fixedSize)
+		: base (Convert.ToInt32 (capacity))
+	{
+	}
+
+	public int length {
+		get { return Count; }
+	}
+	
+	public int indexOf (T value)
+	{
+		return IndexOf (value);
+	}
+	
+	public void splice (int start, int count, params T [] args)
+	{
+		throw new NotImplementedException ();
+	}
+	
+	public void unshift (params T [] args)
+	{
+		throw new NotImplementedException ();
+	}
 }
 
 public class Function
@@ -142,7 +179,7 @@ public class Object
 //	}
 }
 
-public class Array
+public interface Array : IList<object>
 {
 }
 
@@ -152,4 +189,52 @@ public class RegExp
 
 public class EventAttribute : Attribute
 {
+}
+
+public static class Extensions
+{
+	public static void push<T> (this IList<T> arr, T o)
+	{
+		arr.Add (o);
+	}
+
+	public static T pop<T> (this IList<T> arr)
+	{
+		T v = arr [arr.Count - 1];
+		arr.RemoveAt (arr.Count - 1);
+		return v;
+	}
+}
+
+namespace org.si.utils
+{
+	public partial class timer
+	{
+		public static object getTimer ()
+		{
+			throw new NotImplementedException ();
+		}
+	}
+}
+
+namespace org.si.sion.sequencer._base
+{
+	public partial class MMLParser
+	{
+		public static object getTimer ()
+		{
+			throw new NotImplementedException ();
+		}
+	}
+}
+
+namespace org.si.sion
+{
+	public partial class SiONDriver
+	{
+		public static object getTimer ()
+		{
+			throw new NotImplementedException ();
+		}
+	}
 }

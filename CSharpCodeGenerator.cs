@@ -42,6 +42,7 @@ namespace FreeActionScript
 		{
 			writer.WriteLine ("// This source is automatically generated");
 			writer.WriteLine ("using System;");
+			writer.WriteLine ("using System.Linq;");
 			writer.WriteLine ("using Number = System.Double;");
 			writer.WriteLine ("using Class = System.Type;");
 
@@ -182,7 +183,7 @@ namespace FreeActionScript
 			foreach (var ev in Events)
 				ev.GenerateCode (ctx, writer);
 			ctx.WriteHeaders (Headers, writer, false, false);
-			writer.WriteLine ("class {0}{1}{2}", Name, BaseClassName != null ? " : " : " : global::Object", BaseClassName);
+			writer.WriteLine ("partial class {0}{1}{2}", Name, BaseClassName != null ? " : " : " : global::Object", BaseClassName);
 			writer.WriteLine ("{");
 			foreach (var nsuse in NamespaceUses) {
 				writer.WriteLine ("// FIXME: using directive inside class declaration is not allowed in C#");
@@ -344,7 +345,10 @@ namespace FreeActionScript
 				writer.Write (tail);
 			}
 			writer.WriteLine (')');
-			Body.GenerateCode (ctx, writer);
+			if (Body == null) // interface
+				writer.WriteLine (';');
+			else
+				Body.GenerateCode (ctx, writer);
 		}
 	}
 
@@ -859,7 +863,7 @@ namespace FreeActionScript
 	{
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
-			writer.Write ("var ");
+			writer.Write ("dynamic ");
 			foreach (var pair in Pairs) {
 				var tail = Pairs.Last () == pair ? "" : ", ";
 				writer.Write (ctx.SafeName (pair.Name));

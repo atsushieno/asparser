@@ -98,7 +98,9 @@ KeyTerm keyword_import = Keyword ("import");
 KeyTerm keyword_use = Keyword ("use");
 KeyTerm keyword_namespace = Keyword ("namespace");
 KeyTerm keyword_class = Keyword ("class");
+KeyTerm keyword_interface = Keyword ("interface");
 KeyTerm keyword_extends = Keyword ("extends");
+KeyTerm keyword_implements = Keyword ("implements");
 KeyTerm keyword_public = Keyword ("public");
 KeyTerm keyword_protected = Keyword ("protected");
 KeyTerm keyword_internal = Keyword ("internal");
@@ -142,8 +144,8 @@ var package_decl = DefaultNonTerminal ("package_declaration");
 var package_name = DefaultNonTerminal ("package_name");
 var package_contents = DefaultNonTerminal ("package_contents");
 var package_content = DefaultNonTerminal ("package_content");
-var namespace_or_class = DefaultNonTerminal ("namespace_or_class");
-var namespace_or_class_headless = DefaultNonTerminal ("namespace_or_class_headless");
+var namespace_or_class_or_interface = DefaultNonTerminal ("namespace_or_class_or_interface");
+var namespace_or_class_or_interface_headless = DefaultNonTerminal ("namespace_or_class_headless");
 var namespace_decl = DefaultNonTerminal ("namespace_declaration");
 var import = DefaultNonTerminal ("import");
 var namespace_uses = DefaultNonTerminal ("namespace_uses");
@@ -151,14 +153,18 @@ var namespace_use = DefaultNonTerminal ("namespace_use");
 var type_name_wild = DefaultNonTerminal ("type_name_wild");
 var semi_opt = DefaultNonTerminal ("semicolon_optional");
 var class_decl = DefaultNonTerminal ("class_declaration");
+var interface_decl = DefaultNonTerminal ("interface_declaration");
 var opt_extends = DefaultNonTerminal ("opt_extends");
+var opt_implements = DefaultNonTerminal ("opt_implements");
 var event_decls = DefaultNonTerminal ("event_declarations");
 var event_decl = DefaultNonTerminal ("event_declaration");
 var event_decl_members = DefaultNonTerminal ("event_decl_members");
 var event_decl_member = DefaultNonTerminal ("event_decl_member");
 var access_modifier = DefaultNonTerminal ("access_modifier");
 var class_members = DefaultNonTerminal ("class_members");
+var interface_members = DefaultNonTerminal ("interface_members");
 var class_member = DefaultNonTerminal ("class_member");
+var interface_member = DefaultNonTerminal ("interface_member");
 var member_header = DefaultNonTerminal ("member_header");
 var constant_declaration = DefaultNonTerminal ("constant_declaration");
 var field_declaration = DefaultNonTerminal ("field_declaration");
@@ -168,7 +174,9 @@ var property_setter = DefaultNonTerminal ("property_setter");
 var general_function = DefaultNonTerminal ("general_function");
 var general_function_headless = DefaultNonTerminal ("general_function_headless");
 var function_nameless = DefaultNonTerminal ("function_nameless");
+var general_function_decl = DefaultNonTerminal ("general_function_decl");
 var constructor = DefaultNonTerminal ("constructor");
+var opt_return_type = DefaultNonTerminal ("opt_return_type");
 var argument_decls = DefaultNonTerminal ("argument_declarations");
 var varargs_decl = DefaultNonTerminal ("varargs_decl");
 var argument_decl = DefaultNonTerminal ("argument_declaration");
@@ -208,6 +216,7 @@ var for_c_style_statement = DefaultNonTerminal ("for_c_style_statement");
 var for_in_statement = DefaultNonTerminal ("for_in_statement");
 var for_initializers = DefaultNonTerminal ("for_initializers");
 var for_assign_statements = DefaultNonTerminal ("for_assign_statements");
+var for_assign_statement = DefaultNonTerminal ("for_assign_statement");
 var for_iterators = DefaultNonTerminal ("for_iterators");
 var for_iterator = DefaultNonTerminal ("for_iterator");
 var for_each_statement = DefaultNonTerminal ("for_each_statement");
@@ -258,22 +267,24 @@ var literal = DefaultNonTerminal ("literal");
 // non-terminals
 
 compile_unit.Rule = MakeStarRule (compile_unit, null, compile_unit_item);
-compile_unit_item.Rule = package_decl | import | namespace_or_class;
+compile_unit_item.Rule = package_decl | import | namespace_or_class_or_interface;
 package_decl.Rule = keyword_package + package_name + "{" + package_contents + "}";
 package_name.Rule = type_name;
 package_contents.Rule = MakeStarRule (package_contents, null, package_content);
-package_content.Rule = import | namespace_or_class;
-// It is wrong if event_decls are placed before namespace decl, having them before namespace_decl and class_decl results in shift-reduce conflict, and there is no good way to resolve this extra event_decls issue.
-namespace_or_class.Rule = event_decls + member_header + namespace_or_class_headless;
-namespace_or_class_headless.Rule = namespace_decl | class_decl;
+package_content.Rule = import | namespace_or_class_or_interface;
+// It is wrong if event_decls are placed before namespace decl, having them before namespace_decl and class_decl/interface_decl results in shift-reduce conflict, and there is no good way to resolve this extra event_decls issue.
+namespace_or_class_or_interface.Rule = event_decls + member_header + namespace_or_class_or_interface_headless;
+namespace_or_class_or_interface_headless.Rule = namespace_decl | class_decl | interface_decl;
 namespace_decl.Rule = keyword_namespace + type_name + ";";
 
 import.Rule = keyword_import + type_name_wild + ";";
 namespace_uses.Rule = MakeStarRule (namespace_uses, null, namespace_use);
 namespace_use.Rule = keyword_use + keyword_namespace + identifier + ";";
 
-class_decl.Rule = keyword_class + identifier + opt_extends + "{" + namespace_uses + class_members + "}";
+class_decl.Rule = keyword_class + identifier + opt_extends + opt_implements + "{" + namespace_uses + class_members + "}";
+interface_decl.Rule = keyword_interface + identifier + opt_extends + opt_implements + "{" + namespace_uses + interface_members + "}";
 opt_extends.Rule = Empty | keyword_extends + type_name;
+opt_implements.Rule = Empty | keyword_implements + type_name;
 event_decls.Rule = MakeStarRule (event_decls, null, event_decl);
 event_decl.Rule = "[" + type_name + "(" + event_decl_members + ")" + "]"; // type_name must be "Event"
 event_decl_members.Rule = MakeStarRule (event_decl_members, ToTerm (","), event_decl_member);
@@ -282,7 +293,9 @@ event_decl_member.Rule = identifier + "=" + literal;
 // class member
 access_modifier.Rule = keyword_public | keyword_protected | keyword_internal | keyword_private | identifier | keyword_static | keyword_dynamic | keyword_final | keyword_override;
 class_members.Rule = MakeStarRule (class_members, null, class_member);
+interface_members.Rule = MakeStarRule (interface_members, null, interface_member);
 class_member.Rule = constant_declaration | field_declaration | property_function | general_function | constructor ;
+interface_member.Rule = constant_declaration | field_declaration | property_function | general_function_decl;
 
 member_header.Rule = MakeStarRule (member_header, null, access_modifier);
 
@@ -293,15 +306,16 @@ assignment_opt.Rule = Empty | "=" + expression;
 
 // functions
 property_function.Rule = property_getter | property_setter;
-property_getter.Rule = member_header + keyword_function + keyword_get + identifier + "(" + ")" + ":" + type_name + block_statement;
+property_getter.Rule = member_header + keyword_function + keyword_get + identifier + "(" + ")" + ":" + type_name_wild + block_statement;
 property_setter.Rule = member_header + keyword_function + keyword_set + identifier + "(" + identifier + ":" + type_name + ")" + ":" + "void" + block_statement;
 general_function.Rule = member_header + general_function_headless;
 general_function_headless.Rule = keyword_function + identifier + function_nameless;
 function_nameless.Rule =
 	"(" + argument_decls + ")" + block_statement
 	| "(" + argument_decls + ")" + ":" + type_name_wild + block_statement;
-// FIXME: this does not seem to be used.
-constructor.Rule = keyword_function + identifier + "(" + argument_decls + ")" + block_statement;
+general_function_decl.Rule = member_header + keyword_function + identifier + "(" + argument_decls + ")" + opt_return_type + ";";
+constructor.Rule = keyword_function + identifier + "(" + argument_decls + ")" + opt_return_type + block_statement;
+opt_return_type.Rule = Empty | ":" + type_name_wild;
 argument_decls.Rule = MakeStarRule (argument_decls, ToTerm (","), argument_decl);
 argument_decl.Rule = // FIXME: there is an ambiguation issue; on foo.<bar>=baz ">=" conflicts with comparison operator.
 	identifier + ":" + argument_type + assignment_opt
@@ -351,8 +365,12 @@ calc_assign_statement.Rule =
 	| lvalue + "%=" + expression
 	| lvalue + "&=" + expression
 	| lvalue + "|=" + expression
+	| lvalue + "~=" + expression
+	| lvalue + "^=" + expression
 	| lvalue + "<<=" + expression
 	| lvalue + ">>=" + expression
+	| lvalue + "<<<=" + expression
+	| lvalue + ">>>=" + expression
 	;
 return_statement.Rule =
 	keyword_return
@@ -376,7 +394,8 @@ for_statement_remaining.Rule = for_c_style_statement | for_in_statement;
 for_c_style_statement.Rule = for_initializers + ";" + expression + ";" + for_iterators + ")" + statement;
 for_in_statement.Rule = for_each_iterator + keyword_in + expression + ")" + statement;
 for_initializers.Rule = local_var_decl_statement | for_assign_statements;
-for_assign_statements.Rule = MakeStarRule (for_assign_statements, ToTerm (","), assign_statement);
+for_assign_statements.Rule = MakeStarRule (for_assign_statements, ToTerm (","), for_assign_statement);
+for_assign_statement.Rule = assign_statement | calc_assign_statement;
 for_iterators.Rule = MakeStarRule (for_iterators, ToTerm (","), for_iterator);
 for_iterator.Rule = assign_statement | calc_assign_statement;
 for_each_statement.Rule = keyword_for + keyword_each + "(" + for_each_iterator + keyword_in + expression + ")" + statement;
@@ -541,8 +560,7 @@ Delimiters = "{}[](),:;+-*/%&|^!~<>=";
 RegisterPunctuation (";", ",", "{", "}", "[", "]", ":", ".", "?");
 
 MarkNotReported (keyword_package);
-MarkTransient (compile_unit_item, package_name, package_content, namespace_or_class_headless, class_member, property_function, argument_type, statement, statement_lacking_colon, for_statement_remaining, for_iterator, expression, call_argument, lvalue, union_operator, unary_operator, identifier_or_literal);
-//MarkTransient (compile_unit_item, package_decl, package_content, class_member, statement, statement_lacking_colon, expression, conditional_expression, iteration_expression, or_expression, and_expression, equality_expression, relational_expression, additive_expression, multiplicative_expression, as_expression, shift_expression, union_expression, unary_expression, new_object_expression, general_function_headless, function_nameless, call_argument);
+MarkTransient (compile_unit_item, package_name, package_content, namespace_or_class_or_interface_headless, class_member, interface_member, property_function, argument_type, statement, statement_lacking_colon, for_assign_statement, for_statement_remaining, for_iterator, expression, call_argument, lvalue, union_operator, unary_operator, identifier_or_literal);
 
 
 		identifier.AstNodeCreator = delegate (ParsingContext ctx, ParseTreeNode node) { node.AstNode = node.FindTokenAndGetText (); };
@@ -575,12 +593,13 @@ MarkTransient (compile_unit_item, package_name, package_content, namespace_or_cl
 		compile_unit.AstNodeCreator = create_ast_compile_unit;
 		package_decl.AstNodeCreator = create_ast_package_decl;
 		package_contents.AstNodeCreator = create_ast_simple_list<IPackageContent>;
-namespace_or_class.AstNodeCreator = create_ast_namespace_or_class;
+namespace_or_class_or_interface.AstNodeCreator = create_ast_namespace_or_class_or_interface;
 namespace_decl.AstNodeCreator = create_ast_namespace_decl;
 import.AstNodeCreator = create_ast_import;
   namespace_uses.AstNodeCreator = create_ast_simple_list<NamespaceUse>;
 namespace_use.AstNodeCreator = create_ast_namespace_use;
 class_decl.AstNodeCreator = create_ast_class_decl;
+interface_decl.AstNodeCreator = create_ast_interface_decl;
 opt_extends.AstNodeCreator = create_ast_opt_extends;
   event_decls.AstNodeCreator = create_ast_simple_list<EventDeclaration>;
 event_decl.AstNodeCreator = create_ast_event_decl;
@@ -588,6 +607,7 @@ event_decl.AstNodeCreator = create_ast_event_decl;
 event_decl_member.AstNodeCreator = create_ast_event_decl_member;
 access_modifier.AstNodeCreator = create_ast_access_modifier;
   class_members.AstNodeCreator = create_ast_simple_list<IClassMember>;
+  interface_members.AstNodeCreator = create_ast_simple_list<IClassMember>;
 member_header.AstNodeCreator = create_ast_simple_list<MemberHeader>;
 constant_declaration.AstNodeCreator = create_ast_constant_declaration;
 field_declaration.AstNodeCreator = create_ast_field_declaration;
@@ -598,6 +618,7 @@ general_function.AstNodeCreator = create_ast_general_function;
 general_function_headless.AstNodeCreator = create_ast_general_function_headless;
 function_nameless.AstNodeCreator = create_ast_function_nameless;
 constructor.AstNodeCreator = create_ast_constructor;
+general_function_decl.AstNodeCreator = create_ast_general_function_decl;
   argument_decls.AstNodeCreator = create_ast_simple_list<ArgumentDeclaration>;
 argument_decl.AstNodeCreator = create_ast_argument_decl;
 varargs_decl.AstNodeCreator = create_ast_varargs_decl;

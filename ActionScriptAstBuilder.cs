@@ -103,7 +103,7 @@ namespace FreeActionScript
 			node.AstNode = node.ChildNodes [0].Term.Name;
 		}
 
-		void create_ast_namespace_or_class (ParsingContext context, ParseTreeNode node)
+		void create_ast_namespace_or_class_or_interface (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 3);
 			var cns = node.Get<INamespaceOrClass> (2);
@@ -132,11 +132,23 @@ namespace FreeActionScript
 
 		void create_ast_class_decl (ParsingContext context, ParseTreeNode node)
 		{
-			ProcessChildrenCommon (context, node, 5);
-			node.AstNode = new ClassDeclaration (node.Get<Identifier> (1), node.GetNullable<TypeName> (2), node.Get<NamespaceUses> (3), node.Get<ClassMembers> (4));
+			ProcessChildrenCommon (context, node, 6);
+			node.AstNode = new ClassDeclaration (node.Get<Identifier> (1), node.GetNullable<TypeName> (2), node.GetNullable<TypeName> (3), node.Get<NamespaceUses> (4), node.Get<ClassMembers> (5));
+		}
+
+		void create_ast_interface_decl (ParsingContext context, ParseTreeNode node)
+		{
+			create_ast_class_decl (context, node);
 		}
 
 		void create_ast_opt_extends (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 0, 2);
+			if (node.ChildNodes.Count != 0)
+				node.AstNode = node.Get<TypeName> (1);
+		}
+
+		void create_ast_opt_implements (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 0, 2);
 			if (node.ChildNodes.Count != 0)
@@ -169,8 +181,8 @@ namespace FreeActionScript
 
 		void create_ast_constructor (ParsingContext context, ParseTreeNode node) 
 		{
-			ProcessChildrenCommon (context, node, 6);
-			var fd = new FunctionDefinition (node.Get<Identifier> (1), node.Get<ArgumentDeclarations> (3), null, node.Get<BlockStatement> (5));
+			ProcessChildrenCommon (context, node, 7);
+			var fd = new FunctionDefinition (node.Get<Identifier> (1), node.Get<ArgumentDeclarations> (3), node.GetNullable<TypeName> (5), node.Get<BlockStatement> (6));
 			node.AstNode = new Constructor (fd);
 		}
 
@@ -195,6 +207,14 @@ namespace FreeActionScript
 				node.AstNode = new FunctionDefinition (node.Get<ArgumentDeclarations> (1), null, node.Get<BlockStatement> (3));
 			else
 				node.AstNode = new FunctionDefinition (node.Get<ArgumentDeclarations> (1), node.GetNullable<TypeName> (3), node.Get<BlockStatement> (4));
+		}
+
+		void create_ast_general_function_decl (ParsingContext context, ParseTreeNode node) 
+		{
+			ProcessChildrenCommon (context, node, 7);
+			var fd = new FunctionDefinition (node.Get<ArgumentDeclarations> (4), node.GetNullable<TypeName> (6), null);
+			fd.Name = node.Get<Identifier> (2);
+			node.AstNode = new GeneralFunction (node.Get<MemberHeaders> (0), fd);
 		}
 
 		void create_ast_argument_decl (ParsingContext context, ParseTreeNode node)
@@ -682,10 +702,11 @@ namespace FreeActionScript
 
 	public partial class ClassDeclaration : ICompileUnitItem, IPackageContent, INamespaceOrClass
 	{
-		public ClassDeclaration (Identifier name, TypeName baseClassName, NamespaceUses namespaceUses, ClassMembers members)
+		public ClassDeclaration (Identifier name, TypeName baseClassName, TypeName interfaceName, NamespaceUses namespaceUses, ClassMembers members)
 		{
 			Name = name;
 			BaseClassName = baseClassName;
+			InterfaceName = interfaceName;
 			NamespaceUses = namespaceUses;
 			Members = members;
 		}
@@ -694,6 +715,7 @@ namespace FreeActionScript
 		public MemberHeaders Headers { get; set; }
 		public Identifier Name { get; set; }
 		public TypeName BaseClassName { get; set; }
+		public TypeName InterfaceName { get; set; }
 		public NamespaceUses NamespaceUses { get; private set; }
 		public ClassMembers Members { get; private set; }
 	}
@@ -792,8 +814,9 @@ namespace FreeActionScript
 		{
 			if (args == null)
 				throw new ArgumentNullException ("args");
-			if (body == null)
-				throw new ArgumentNullException ("body");
+			// could be null for interface
+			//if (body == null)
+			//	throw new ArgumentNullException ("body");
 			Arguments = args;
 			ReturnTypeName = returnType;
 			Body = body;

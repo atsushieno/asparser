@@ -27,6 +27,10 @@ namespace flash.display
 	public class Sprite
 	{
 	}
+
+	public class BitmapData
+	{
+	}
 }
 
 namespace flash.errors
@@ -90,11 +94,20 @@ namespace flash.net
 	public class URLRequest
 	{
 	}
+	public class FileFilter
+	{
+	}
+	public class FileReference
+	{
+	}
 }
 
 namespace flash.system
 {
 	public class System
+	{
+	}
+	public class LoaderContext
 	{
 	}
 }

@@ -139,13 +139,18 @@ namespace FreeActionScript
 
 		void create_ast_class_decl (ParsingContext context, ParseTreeNode node)
 		{
-			ProcessChildrenCommon (context, node, 6);
-			node.AstNode = new ClassDeclaration (node.Get<Identifier> (1), node.GetNullable<TypeName> (2), node.GetNullable<TypeName> (3), node.Get<NamespaceUses> (4), node.Get<ClassMembers> (5));
+			CreateClassDecl (context, node, false);
 		}
 
 		void create_ast_interface_decl (ParsingContext context, ParseTreeNode node)
 		{
-			create_ast_class_decl (context, node);
+			CreateClassDecl (context, node, true);
+		}
+
+		void CreateClassDecl (ParsingContext context, ParseTreeNode node, bool isInterface)
+		{
+			ProcessChildrenCommon (context, node, 6);
+			node.AstNode = new ClassDeclaration (node.Get<Identifier> (1), node.GetNullable<TypeName> (2), node.GetNullable<TypeName> (3), node.Get<NamespaceUses> (4), node.Get<ClassMembers> (5)) { IsInterface = isInterface };
 		}
 
 		void create_ast_opt_extends (ParsingContext context, ParseTreeNode node)
@@ -731,6 +736,7 @@ namespace FreeActionScript
 		public TypeName InterfaceName { get; set; }
 		public NamespaceUses NamespaceUses { get; private set; }
 		public ClassMembers Members { get; private set; }
+		public bool IsInterface { get; set; }
 	}
 
 	public partial class NamespaceUse

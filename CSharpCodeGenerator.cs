@@ -900,13 +900,35 @@ namespace FreeActionScript
 	{
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
+			switch (Operator) {
+			case "<<<=":
+				GenerateFunctionBasedExpr (ctx, writer, "RotateLeft");
+				break;
+			case ">>>=":
+				GenerateFunctionBasedExpr (ctx, writer, "RotateRight");
+				break;
+			default:
+				Left.GenerateCode (ctx, writer);
+				writer.Write (' ');
+				writer.Write (Operator);
+				writer.Write (' ');
+				Right.GenerateCode (ctx, writer);
+				if (!ctx.InForHeadings)
+					writer.WriteLine (';');
+				break;
+			}
+		}
+
+		void GenerateFunctionBasedExpr (CodeGenerationContext ctx, TextWriter writer, string name)
+		{
 			Left.GenerateCode (ctx, writer);
-			writer.Write (' ');
-			writer.Write (Operator);
-			writer.Write (' ');
+			writer.Write (" = ");
+			writer.Write (name);
+			writer.Write (" (");
+			Left.GenerateCode (ctx, writer);
+			writer.Write (", ");
 			Right.GenerateCode (ctx, writer);
-			if (!ctx.InForHeadings)
-				writer.WriteLine (';');
+			writer.Write (");");
 		}
 	}
 

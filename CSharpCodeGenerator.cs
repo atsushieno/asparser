@@ -188,7 +188,7 @@ namespace FreeActionScript
 			foreach (var ev in Events)
 				ev.GenerateCode (ctx, writer);
 			ctx.WriteHeaders (Headers, writer, false, false);
-			writer.WriteLine ("partial {3} {0}{1}{2}", Name, BaseClassName != null ? " : " : " : global::Object", BaseClassName, IsInterface ? "interface" : "class");
+			writer.WriteLine ("partial {3} {0}{1}{2}", Name, BaseClassName != null ? " : " : /*" : global::Object"*/String.Empty, BaseClassName, IsInterface ? "interface" : "class");
 			writer.WriteLine ("{");
 			foreach (var nsuse in NamespaceUses) {
 				writer.WriteLine ("// FIXME: using directive inside class declaration is not allowed in C#");

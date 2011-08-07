@@ -57,6 +57,8 @@ namespace FreeActionScript
 		public ClassDeclaration CurrentType { get; set; } // probably needs to be modified to allow interfaces (so far they are ClassDeclaration too though)
 		public PropertySetter CurrentPropertySetter { get; set; }
 		public bool InForHeadings { get; set; }
+		public bool DoNotEscape { get; set; }
+		public TypeName KnownLValueType { get; set; }
 
 		int anonidx;
 
@@ -75,6 +77,9 @@ namespace FreeActionScript
 
 		public Identifier SafeName (Identifier name)
 		{
+			if (DoNotEscape)
+				return name;
+
 			// FIXME: cover all C# keywords.
 			switch (name) {
 			case "out":
@@ -277,6 +282,7 @@ namespace FreeActionScript
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
 			ctx.WriteHeaders (Headers, writer, false, this is ConstantDeclaration);
+			var bak = ctx.KnownLValueType;
 			foreach (var ntv in NameTypeValues) {
 				// because AS3 variable types could differ within a line (unlike C#), they have to be declared in split form (or I have to do something more complicated.)
 				if (this is ConstantDeclaration)
@@ -287,6 +293,7 @@ namespace FreeActionScript
 					writer.Write ("var");
 				else
 					writer.Write ("dynamic");
+				ctx.KnownLValueType = ntv.Type;
 				writer.Write (' ');
 				writer.Write (ctx.SafeName (ntv.Name));
 				if (ntv.Value != null) {
@@ -294,7 +301,9 @@ namespace FreeActionScript
 					ntv.Value.GenerateCode (ctx, writer);
 				}
 				writer.WriteLine (';');
+				ctx.KnownLValueType = null;
 			}
+			ctx.KnownLValueType = bak;
 		}
 	}
 
@@ -413,11 +422,14 @@ namespace FreeActionScript
 	{
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
+			var bak = ctx.KnownLValueType;
 			Target.GenerateCode (ctx, writer);
+			ctx.KnownLValueType = Target.Type;
 			writer.Write (" {0}= ", ctx.ToCSharpCode (Operator));
 			Value.GenerateCode (ctx, writer);
 			if (!ctx.InForHeadings)
 				writer.WriteLine (';');
+			ctx.KnownLValueType = bak;
 		}
 	}
 
@@ -777,6 +789,16 @@ namespace FreeActionScript
 		}
 	}
 
+	public partial class IsExpression : Expression
+	{
+		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
+		{
+			Primary.GenerateCode (ctx, writer);
+			writer.Write (" is ");
+			writer.Write (Type.ToCSharp ());
+		}
+	}
+
 	public partial class MemberReferenceExpression : Expression, ILeftValue
 	{
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
@@ -789,16 +811,36 @@ namespace FreeActionScript
 	{
 		public void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
-			bool gen = AccessType == MemberAccessType.GenericSubtype;
-			if (Target != null) {
+			switch (Member != null ? Member.ToString () : null) {
+			case "MIN_VALUE":
+				ctx.DoNotEscape = true;
 				Target.GenerateCode (ctx, writer);
-				if (gen)
-					writer.Write ("<" + GenericSubtype + ">");
-				else
-					writer.Write ("." + ctx.SafeName (Member));
+				ctx.DoNotEscape = false;
+				writer.Write ('.');
+				writer.Write ("MinValue");
+				break;
+			case "MAX_VALUE":
+				ctx.DoNotEscape = true;
+				Target.GenerateCode (ctx, writer);
+				ctx.DoNotEscape = false;
+				writer.Write ('.');
+				writer.Write ("MaxValue");
+				break;
+			default:
+				bool gen = AccessType == MemberAccessType.GenericSubtype;
+				if (Target != null) {
+					if (gen)
+						writer.Write ("new ");
+					Target.GenerateCode (ctx, writer);
+					if (gen)
+						writer.Write ("<" + GenericSubtype + ">");
+					else
+						writer.Write ("." + ctx.SafeName (Member));
+				}
+				else if (!gen)
+					writer.Write (ctx.GetActualName (Member));
+				break;
 			}
-			else if (!gen)
-				writer.Write (ctx.GetActualName (Member));
 		}
 	}
 
@@ -822,7 +864,9 @@ namespace FreeActionScript
 	{
 		public override void GenerateCode (CodeGenerationContext ctx, TextWriter writer)
 		{
-			writer.Write ("new object [] {");
+			var type = ctx.KnownLValueType != null ? ctx.KnownLValueType.GenericSubtype : null;
+
+			writer.Write ("new {0} [] {{", type);
 			foreach (var expr in Values) {
 				var tail = Values.Last () == expr ? "" : ", ";
 				expr.GenerateCode (ctx, writer);

@@ -206,6 +206,23 @@ public class EventAttribute : Attribute
 
 public static class Extensions
 {
+	/*
+	public static int @int (this object dummy, object arg)
+	{
+		return Convert.ToInt32 (arg);
+	}
+	
+	public static uint @uint (this object dummy, object arg)
+	{
+		return Convert.ToUInt32 (arg);
+	}
+	
+	public static Vector<T> Vector<T> (this object dummy, object [] args)
+	{
+		return new Vector<T> (from o in args select (T) o);
+	}
+	*/
+	
 	public static void push<T> (this IList<T> arr, T o)
 	{
 		arr.Add (o);

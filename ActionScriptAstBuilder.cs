@@ -456,6 +456,15 @@ namespace FreeActionScript
 				node.AstNode = new CastAsExpression (node.Get<Expression> (0), node.Get<TypeName> (2));
 		}
 
+		void create_ast_is_expression (ParsingContext context, ParseTreeNode node)
+		{
+			ProcessChildrenCommon (context, node, 1, 3);
+			if (node.ChildNodes.Count == 1)
+				node.AstNode = node.Get<Expression> (0);
+			if (node.ChildNodes.Count == 3)
+				node.AstNode = new IsExpression (node.Get<Expression> (0), node.Get<TypeName> (2));
+		}
+
 		void create_ast_function_call_expression (ParsingContext context, ParseTreeNode node)
 		{
 			ProcessChildrenCommon (context, node, 4);
@@ -1094,6 +1103,9 @@ namespace FreeActionScript
 
 	public abstract partial class Expression : IExpression
 	{
+		public virtual TypeName Type {
+			get { return null; }
+		}
 	}
 
 	public partial class ConditionalExpression : Expression
@@ -1155,6 +1167,7 @@ namespace FreeActionScript
 	
 	public partial interface ILeftValue // things that can be lvalue
 	{
+		TypeName Type { get; }
 	}
 	
 	public partial class ArrayAccessExpression : Expression, ILeftValue
@@ -1165,6 +1178,9 @@ namespace FreeActionScript
 			Index = index;
 		}
 		
+		public TypeName Type {
+			get { return Array.Type; }
+		}
 		public Expression Array { get; set; }
 		public Expression Index { get; set; }
 	}
@@ -1177,6 +1193,9 @@ namespace FreeActionScript
 			Threshold = threshold;
 		}
 
+		public TypeName Type {
+			get { return Array.Type; }
+		}
 		public Expression Array { get; set; }
 		public Expression Threshold { get; set; }
 	}
@@ -1206,6 +1225,18 @@ namespace FreeActionScript
 	public partial class CastAsExpression : Expression
 	{
 		public CastAsExpression (Expression primary, TypeName type)
+		{
+			Primary = primary;
+			Type = type;
+		}
+		
+		public Expression Primary { get; set; }
+		public TypeName Type { get; set; }
+	}
+
+	public partial class IsExpression : Expression
+	{
+		public IsExpression (Expression primary, TypeName type)
 		{
 			Primary = primary;
 			Type = type;
@@ -1252,6 +1283,9 @@ namespace FreeActionScript
 			Target = target;
 		}
 
+		public TypeName Type {
+			get { return Target.Type; }
+		}
 		public MemberReference Target { get; set; }
 	}
 
@@ -1284,6 +1318,10 @@ namespace FreeActionScript
 			Target = target;
 			GenericSubtype = genericSubtype;
 			AccessType = accessType;
+		}
+
+		public TypeName Type {
+			get { return Member == null ? Target.Type : null; }
 		}
 
 		public Expression Target { get; set; }
@@ -1552,12 +1590,28 @@ namespace FreeActionScript
 
 	public partial class TypeName
 	{
+		public static TypeName Get (string raw)
+		{
+			return new TypeName (raw);
+		}
+
 		public TypeName (string raw)
 		{
 			Raw = raw;
 		}
 		
 		public string Raw { get; set; }
+		
+		public string GenericSubtype {
+			get {
+				if (Raw.IndexOf (".<") > 0) {
+					var type = Raw.Substring (Raw.IndexOf (".<") + 2);
+					if (type.IndexOf (">") > 0)
+						return type.Substring (0, type.IndexOf (">"));
+				}
+				return null;
+			}
+		}
 		
 		public override string ToString ()
 		{

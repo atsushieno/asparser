@@ -238,6 +238,7 @@ var conditional_expression = DefaultNonTerminal ("conditional_expression");
 var or_expression = BinaryOperatorTerminal ("or_expression");
 var and_expression = BinaryOperatorTerminal ("and_expression");
 var equality_expression = BinaryOperatorTerminal ("equality_expression");
+var is_expression = DefaultNonTerminal ("is_expression");
 var relational_expression = BinaryOperatorTerminal ("relational_expression");
 var additive_expression = BinaryOperatorTerminal ("additive_expression");
 var multiplicative_expression = BinaryOperatorTerminal ("multiplicative_expression");
@@ -439,7 +440,9 @@ equality_expression.Rule =
 	| equality_expression + "!==" + relational_expression
 	| equality_expression + "==" + relational_expression
 	| equality_expression + "!=" + relational_expression
-	| equality_expression + keyword_is + relational_expression;
+	| is_expression;
+is_expression.Rule =
+	equality_expression + keyword_is + type_name;
 relational_expression.Rule =
 	additive_expression
 	| relational_expression + "<" + additive_expression
@@ -666,6 +669,7 @@ delete_statement.AstNodeCreator = create_ast_delete_statement;
 assignment_expression.AstNodeCreator = create_ast_assignment_expression;
 conditional_expression.AstNodeCreator = create_ast_conditional_expression;
 as_expression.AstNodeCreator = create_ast_as_expression;
+is_expression.AstNodeCreator = create_ast_is_expression;
 unary_expression.AstNodeCreator = create_ast_unary_expression;
 inc_dec_expression.AstNodeCreator = create_ast_inc_dec_expression;
 iteration_expression.AstNodeCreator = create_ast_iteration_expression;
